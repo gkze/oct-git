@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
+/// A model of the subset of the gpg CLI interface that we're supporting, to be called by git.
 #[derive(Parser, Debug, Default)]
 pub struct Args {
     #[clap(long)]
@@ -32,9 +33,10 @@ pub struct Args {
 
     pub file_to_verify: Option<String>,
 
-    /// Path to cert-d storage.
+    /// Path to cert-d storage (used for signature verification).
+    /// If None, use the user's default (shared) PGP certificate directory.
     ///
-    /// None: use the user's default/shared PGP certificate directory.
+    /// Also see <https://datatracker.ietf.org/doc/draft-nwjw-openpgp-cert-d/>
     #[clap(short, long, env = "PGP_CERT_D")]
     pub cert_store: Option<PathBuf>,
 }
