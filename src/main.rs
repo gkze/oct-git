@@ -5,25 +5,22 @@
 use std::io::{stderr, stdin, stdout};
 
 use clap::Parser;
-use monkeybagel::{cli, sign, verify};
+use monkeybagel::cli::{Args, Mode};
+use monkeybagel::{sign, verify};
 
 fn main() {
-    let args = cli::Args::parse();
+    let args = Args::parse();
 
-    let mode = match cli::Mode::try_from(args) {
-        Ok(mode) => mode,
+    let res = match Mode::try_from(args) {
+        Ok(Mode::Verify {
+            signature,
+            cert_store,
+        }) => verify(stdin(), stdout(), stderr(), &signature, &cert_store),
+        Ok(Mode::Sign(key, armor)) => sign(stdin(), stdout(), stderr(), &key, armor),
         Err(e) => {
             eprintln!("CLI error: {e}");
             std::process::exit(1);
         }
-    };
-
-    let res = match &mode {
-        cli::Mode::Verify {
-            signature,
-            cert_store,
-        } => verify(stdin(), stdout(), stderr(), signature, cert_store),
-        cli::Mode::Sign(key, armor) => sign(stdin(), stdout(), stderr(), key, *armor),
     };
 
     if let Err(e) = res {
