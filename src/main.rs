@@ -1,5 +1,9 @@
+// SPDX-FileCopyrightText: Wiktor Kwapisiewicz <wiktor@metacode.biz>
+// SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 use clap::Parser;
-use monkeybagel::{run, Args};
+use monkeybagel::{cli::Args, run};
 
 fn main() {
     let args = Args::parse();

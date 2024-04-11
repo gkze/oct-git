@@ -1,6 +1,9 @@
+// SPDX-FileCopyrightText: Wiktor Kwapisiewicz <wiktor@metacode.biz>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 use std::path::PathBuf;
 
-use monkeybagel::{run, Args};
+use monkeybagel::{cli::Args, run};
 use rstest::rstest;
 use testresult::TestResult;
 

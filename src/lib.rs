@@ -1,7 +1,10 @@
-use std::{io::Read, io::Write, path::PathBuf};
+// SPDX-FileCopyrightText: Wiktor Kwapisiewicz <wiktor@metacode.biz>
+// SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
+use std::{io::Read, io::Write};
 
 use card_backend_pcsc::PcscBackend;
-use clap::Parser;
 use hex::ToHex;
 use openpgp_card::ocard::KeyType;
 use openpgp_card_rpgp::CardSlot;
@@ -13,82 +16,7 @@ use pgp::{ArmorOptions, Deserializable, Signature, SignedSecretKey, StandaloneSi
 use rpgpie::key::{checked::CheckedCertificate, component::SignedComponentKeyPub};
 use rpgpie_certificate_store::Store;
 
-#[derive(Parser, Debug, Default)]
-pub struct Args {
-    #[clap(long)]
-    pub verify: Option<PathBuf>,
-
-    #[clap(long, short = 'b')]
-    pub detach_sign: bool,
-
-    #[clap(long, short = 's')]
-    pub sign: bool,
-
-    #[clap(long, short = 'a')]
-    pub armor: bool,
-
-    #[clap(long, short = 'u')]
-    pub user_id: Option<String>,
-
-    #[clap(long)]
-    pub keyid_format: Option<String>,
-
-    #[clap(long)]
-    pub status_fd: Option<String>,
-
-    pub file_to_verify: Option<String>,
-
-    /// Certificate store. By default uses user's shared PGP certificate directory.
-    #[clap(short, long, env = "PGP_CERT_D")]
-    pub cert_store: Option<PathBuf>,
-}
-
-enum Armor {
-    NoArmor,
-    Armor,
-}
-
-enum Mode {
-    Verify {
-        signature: PathBuf,
-        cert_store: Option<PathBuf>,
-    },
-    Sign(String, Armor),
-}
-
-impl TryFrom<Args> for Mode {
-    type Error = String;
-
-    fn try_from(value: Args) -> Result<Self, Self::Error> {
-        if let Some(signature) = value.verify {
-            if Some("-".into()) == value.file_to_verify {
-                Ok(Mode::Verify {
-                    signature,
-                    cert_store: value.cert_store,
-                })
-            } else {
-                Err("Verification of other files than stdin is unsupported. Use -".into())
-            }
-        } else if value.detach_sign {
-            if let Some(user_id) = value.user_id {
-                Ok(Mode::Sign(
-                    user_id,
-                    if value.armor {
-                        Armor::Armor
-                    } else {
-                        Armor::NoArmor
-                    },
-                ))
-            } else {
-                Err("-u parameter is required. Please use hex-encoded signing subkey with no spaces".into())
-            }
-        } else if value.sign {
-            Err("Inline sign is not supported. Use --detach-sign".into())
-        } else {
-            Err("Unknown mode: only verify and detach-sign operations are supported.".into())
-        }
-    }
-}
+pub mod cli;
 
 fn match_id(card: &[u8], git: &[u8]) -> bool {
     match (card.len(), git.len()) {
@@ -99,15 +27,15 @@ fn match_id(card: &[u8], git: &[u8]) -> bool {
 }
 
 pub fn run(
-    args: Args,
+    args: cli::Args,
     mut stdin: impl Read,
     mut stdout: impl Write,
     mut stderr: impl Write,
 ) -> std::result::Result<(), Box<dyn std::error::Error>> {
-    let mode: Mode = args.try_into()?;
+    let mode: cli::Mode = args.try_into()?;
 
     match &mode {
-        Mode::Verify {
+        cli::Mode::Verify {
             signature,
             cert_store,
         } => {
@@ -225,7 +153,7 @@ pub fn run(
             }
             Ok(())
         }
-        Mode::Sign(key, armor) => {
+        cli::Mode::Sign(key, armor) => {
             let signature = if let Some(file_name) = key.strip_prefix("file::") {
                 let signer = SignedSecretKey::from_bytes(std::fs::File::open(file_name)?)?;
                 complete_signing(signer, stdin)?
@@ -285,9 +213,9 @@ pub fn run(
                 })
             };
             match armor {
-                Armor::Armor => StandaloneSignature { signature }
+                cli::Armor::Armor => StandaloneSignature { signature }
                     .to_armored_writer(&mut stdout, ArmorOptions::default())?,
-                Armor::NoArmor => pgp::packet::write_packet(&mut stdout, &signature)?,
+                cli::Armor::NoArmor => pgp::packet::write_packet(&mut stdout, &signature)?,
             }
 
             // https://github.com/git/git/blob/11c821f2f2a31e70fb5cc449f9a29401c333aad2/gpg-interface.c#L994
