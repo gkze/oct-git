@@ -7,84 +7,125 @@ use std::io::{Read, Write};
 use card_backend_pcsc::PcscBackend;
 use openpgp_card::ocard::KeyType;
 use openpgp_card_rpgp::CardSlot;
-use pgp::crypto::hash::HashAlgorithm;
 use pgp::packet::{SignatureConfig, SignatureType, SignatureVersion, Subpacket, SubpacketData};
 use pgp::types::{KeyVersion, SecretKeyTrait};
 use pgp::{ArmorOptions, Deserializable, Signature, SignedSecretKey, StandaloneSignature};
 
 use crate::cli;
 
-fn match_id(card: &[u8], git: &[u8]) -> bool {
-    match (card.len(), git.len()) {
-        (20, 20) => card == git,
-        (20, 8) => &card[12..] == git, // match as v4 key id
+fn verify_pin_from_backend(
+    tx: &mut openpgp_card::Card<openpgp_card::state::Transaction>,
+    ident: &str,
+    mut stderr: impl Write,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Ok(Some(pin)) = openpgp_card_state::get_pin(ident) {
+        if tx.card().verify_pw1_sign(pin.as_bytes()).is_err() {
+            // We drop the PIN from the state backend, to avoid exhausting
+            // the retry counter and locking up the User PIN.
+            let res = openpgp_card_state::drop_pin(ident);
+
+            if res.is_ok() {
+                writeln!(stderr,
+                         "ERROR: The stored User PIN for OpenPGP card '{}' seems wrong or blocked! Dropped it from storage.",
+                         &ident)?;
+            } else {
+                writeln!(stderr,
+                         "ERROR: The stored User PIN for OpenPGP card '{}' seems wrong or blocked! In addition, dropping it from storage failed.",
+                         &ident)?;
+            }
+        }
+
+        Ok(())
+    } else {
+        Err(std::io::Error::other("No signing PIN configured.").into())
+    }
+}
+
+/// Compare the fingerprint `card_fp` from a card with a key identifier passed in by git.
+/// The `git` key identifier can be either a Fingerprint or an (8 byte) Key ID.
+///
+/// The git identifier may specify the fingerprint or key id of primary key that is not a signing
+/// key. The card may not contain that (presumably: certification) key at all.
+///
+/// The identifier stored in git must reflect the signing key that should be used for signing.
+fn match_id(card_fp: &[u8], git: &[u8]) -> bool {
+    match (card_fp.len(), git.len()) {
+        (20, 20) => card_fp == git,
+        (20, 8) => &card_fp[12..] == git, // match `git` as a v4 key id
         _ => false,
     }
 }
 
+/// `key` identifies the key to be used for signing.
+///
+/// It can contain a reference to a key in two different formats:
+/// 1. a Fingerprint or Key ID, in hexdecimal notation, optionally prefixed with `0x`.
+/// 2. The format "`file::<path>`" points to a TSK that contains private key material to be used for
+///    signing (this mode is currently only intended for testing, and doesn't support
+///    password-protected keys).
+///
+/// Note: We expect git to pass the Fingerprint or Key ID of the signing key, in `key`.
+/// If the primary key doesn't serve as the data signing key, then we expect to receive the
+/// identity of the signing subkey in `key`.
+///
+/// (We don't currently handle the full Certificate of the signing key, so we can't look up signing
+/// subkeys by primary fingerprint.)
 pub fn sign(
-    stdin: impl Read,
+    data: impl Read,
     mut stdout: impl Write,
     mut stderr: impl Write,
     key: &str,
     armor: cli::Armor,
-) -> std::result::Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error>> {
+    // TODO: Optionally lookup the signer certificate from the cert-d store?
     let signature = if let Some(file_name) = key.strip_prefix("file::") {
+        // We're using a software key to perform the signing operation
         let signer = SignedSecretKey::from_bytes(std::fs::File::open(file_name)?)?;
-        complete_signing(signer, stdin)?
+
+        // FIXME: implicitly signs with the primary key
+        calculate_signature(signer, data)?
     } else {
+        // We're trying to use an OpenPGP card to perform the signing operation
+
+        // Fingerprint or Key ID of the signing key (provided by git)
         let signing_key = if let Some(hex_fpr) = key.strip_prefix("0x") {
             hex::decode(hex_fpr)?
         } else {
             hex::decode(key)?
         };
+
         let mut signature = None;
+
         for card in PcscBackend::cards(None)? {
             let card = card?;
             let mut card = openpgp_card::Card::new(card)?;
             let mut tx = card.transaction()?;
-            let ard = tx.card().application_related_data()?;
-            let fprs = ard.fingerprints()?;
-            if let Some(fpr) = fprs.signature() {
+
+            if let Some(fpr) = tx.fingerprint(KeyType::Signing)? {
+                // Does this card contain the signing key that git is asking us to use?
                 if match_id(fpr.as_bytes(), &signing_key) {
-                    let ident = ard.application_id()?.ident();
-                    if let Ok(Some(pin)) = openpgp_card_state::get_pin(&ident) {
-                        if tx.card().verify_pw1_sign(pin.as_bytes()).is_err() {
-                            // We drop the PIN from the state backend, to avoid exhausting
-                            // the retry counter and locking up the User PIN.
-                            let res = openpgp_card_state::drop_pin(&ident);
+                    // Verify the User PIN (implicitly obtained via openpgp_card_state)
+                    let ident = tx.application_identifier()?.ident();
+                    verify_pin_from_backend(&mut tx, &ident, &mut stderr)?;
 
-                            if res.is_ok() {
-                                writeln!(stderr,
-                                         "ERROR: The stored User PIN for OpenPGP card '{}' seems wrong or blocked! Dropped it from storage.",
-                                         &ident)?;
-                            } else {
-                                writeln!(stderr,
-                                         "ERROR: The stored User PIN for OpenPGP card '{}' seems wrong or blocked! In addition, dropping it from storage failed.",
-                                         &ident)?;
-                            }
-                        }
-                    } else {
-                        return Err(std::io::Error::other("No signing PIN configured.").into());
-                    }
-
+                    // A signer based on the card
                     let cs = CardSlot::init_from_card(&mut tx, KeyType::Signing, &|| {
+                        // FIXME: add notification
                         eprintln!("touch confirmation required")
                     })?;
 
-                    signature = Some(complete_signing(cs, stdin)?);
+                    signature = Some(calculate_signature(cs, data)?);
                     break;
                 }
             }
         }
 
-        signature.unwrap_or_else(|| {
-            panic!(
-                "No cards attached provide signing for selected key {:?}.",
-                key
-            )
-        })
+        match signature {
+            None => panic!("Found no OpenPGP card for signing key {:?}.", key),
+            Some(s) => s,
+        }
     };
+
     match armor {
         cli::Armor::Armor => StandaloneSignature { signature }
             .to_armored_writer(&mut stdout, ArmorOptions::default())?,
@@ -97,15 +138,16 @@ pub fn sign(
     Ok(())
 }
 
-fn complete_signing(
+/// Set up a signature packet, hash `data`, and make a cryptographic signature with `signer`
+fn calculate_signature(
     signer: impl SecretKeyTrait,
-    stdin: impl Read,
+    data: impl Read,
 ) -> Result<Signature, Box<dyn std::error::Error>> {
-    let signature = SignatureConfig::new_v4(
+    let sig_config = SignatureConfig::new_v4(
         SignatureVersion::V4,
         SignatureType::Binary,
         signer.algorithm(),
-        HashAlgorithm::SHA2_256,
+        signer.hash_alg(),
         vec![
             Subpacket::regular(SubpacketData::SignatureCreationTime(
                 std::time::SystemTime::now().into(),
@@ -119,18 +161,18 @@ fn complete_signing(
         vec![],
     );
 
-    let mut hasher = signature.hash_alg.new_hasher()?;
+    let mut hasher = sig_config.hash_alg.new_hasher()?;
 
-    signature.hash_data_to_sign(&mut *hasher, stdin)?;
-    let len = signature.hash_signature_data(&mut *hasher)?;
-    hasher.update(&signature.trailer(len)?);
+    sig_config.hash_data_to_sign(&mut *hasher, data)?;
+    let len = sig_config.hash_signature_data(&mut *hasher)?;
+    hasher.update(&sig_config.trailer(len)?);
 
     let hash = &hasher.finish()[..];
 
     let signed_hash_value = [hash[0], hash[1]];
-    let raw_sig = signer.create_signature(String::new, HashAlgorithm::SHA2_256, hash)?;
+    let raw_sig = signer.create_signature(String::new, sig_config.hash_alg, hash)?;
 
-    let signature = Signature::from_config(signature, signed_hash_value, raw_sig);
+    let signature = Signature::from_config(sig_config, signed_hash_value, raw_sig);
 
     Ok(signature)
 }
