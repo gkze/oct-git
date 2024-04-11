@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: Wiktor Kwapisiewicz <wiktor@metacode.biz>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use monkeybagel::{cli::Args, run};
+use monkeybagel::cli::Armor;
+use monkeybagel::sign;
 use pgp::SignedPublicKey;
 use pgp::{Deserializable, StandaloneSignature};
 use testresult::TestResult;
@@ -10,21 +11,18 @@ use testresult::TestResult;
 fn signing_key() -> TestResult {
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
-    let cert_store = testdir::testdir!();
+
     let data = "test";
-    if let Err(e) = run(
-        Args {
-            user_id: Some("file::tests/signing-key.pgp".into()),
-            sign: true,
-            detach_sign: true,
-            armor: true,
-            cert_store: Some(cert_store),
-            ..Default::default()
-        },
-        data.as_bytes(),
-        &mut stdout,
-        &mut stderr,
-    ) {
+
+    if let Err(e) = {
+        sign(
+            data.as_bytes(),
+            &mut stdout,
+            &mut stderr,
+            "file::tests/signing-key.pgp",
+            Armor::Armor,
+        )
+    } {
         eprintln!("An error occurred: {}", e);
         eprintln!("stderr: {}", String::from_utf8_lossy(&stderr));
         println!("stdout: {}", String::from_utf8_lossy(&stdout));

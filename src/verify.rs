@@ -12,7 +12,7 @@ use rpgpie::key::checked::CheckedCertificate;
 use rpgpie::key::component::SignedComponentKeyPub;
 use rpgpie_certificate_store::Store;
 
-pub(crate) fn verify(
+pub fn verify(
     mut stdin: impl Read,
     mut stdout: impl Write,
     mut stderr: impl Write,

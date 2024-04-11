@@ -26,7 +26,7 @@ pub fn sign(
     stdin: impl Read,
     mut stdout: impl Write,
     mut stderr: impl Write,
-    key: &String,
+    key: &str,
     armor: cli::Armor,
 ) -> std::result::Result<(), Box<dyn std::error::Error>> {
     let signature = if let Some(file_name) = key.strip_prefix("file::") {

@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use monkeybagel::{cli::Args, run};
+use monkeybagel::verify;
 use rstest::rstest;
 use testresult::TestResult;
 
@@ -30,17 +30,15 @@ fn main(#[files("tests/test-cases/*")] path: PathBuf) -> TestResult {
 
     drop(cert_d);
 
-    if let Err(e) = run(
-        Args {
-            verify: Some(path.join("signature.asc")),
-            file_to_verify: Some("-".into()),
-            cert_store: Some(cert_store),
-            ..Default::default()
-        },
-        data,
-        &mut stdout,
-        &mut stderr,
-    ) {
+    if let Err(e) = {
+        verify(
+            data,
+            &mut stdout,
+            &mut stderr,
+            &path.join("signature.asc"),
+            &Some(cert_store),
+        )
+    } {
         eprintln!("An error occurred: {}", e);
         eprintln!("stderr: {}", String::from_utf8_lossy(&stderr));
         println!("stdout: {}", String::from_utf8_lossy(&stdout));
