@@ -10,19 +10,24 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+card-backend-pcsc = "0.5"
 clap = { version = "4", features = ["derive", "env"] }
-hex = "0.4.3"
+hex = "0.4"
+notify-rust = { version = "4", optional = true }
+openpgp-card = "0.5.0-alpha.1"
+openpgp-card-rpgp = "0.0.1"
+openpgp-card-state = "0.1"
 pgp = "0.12.0-alpha.2"
+reqwest = { version = "0.12", features = ["blocking"] }
 rpgpie = { version = "0.0.5" }
 rpgpie-certificate-store = "0.0.2"
-openpgp-card-rpgp = "0.0.1"
-card-backend-pcsc = "0.5.0"
-openpgp-card = "0.5.0-alpha.1"
-openpgp-card-state = "0.1.0"
-reqwest = { version = "0.12.3", features = ["blocking"] }
 
 [dev-dependencies]
-openpgp-cert-d = "0.3.1"
-rstest = "0.18.2"
-testdir = "0.9.1"
-testresult = "0.4.0"
+openpgp-cert-d = "0.3"
+rstest = "0.19"
+testdir = "0.9"
+testresult = "0.4"
+
+[features]
+default = ["notify"]
+notify = ["dep:notify-rust"]

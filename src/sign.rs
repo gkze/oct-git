@@ -12,11 +12,11 @@ use pgp::types::{KeyVersion, SecretKeyTrait};
 use pgp::{ArmorOptions, Deserializable, Signature, SignedSecretKey, StandaloneSignature};
 
 use crate::cli;
+use crate::notify::notify_and_eprint;
 
 fn verify_pin_from_backend(
     tx: &mut openpgp_card::Card<openpgp_card::state::Transaction>,
     ident: &str,
-    mut stderr: impl Write,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Ok(Some(pin)) = openpgp_card_state::get_pin(ident) {
         if tx.card().verify_pw1_sign(pin.as_bytes()).is_err() {
@@ -25,19 +25,24 @@ fn verify_pin_from_backend(
             let res = openpgp_card_state::drop_pin(ident);
 
             if res.is_ok() {
-                writeln!(stderr,
-                         "ERROR: The stored User PIN for OpenPGP card '{}' seems wrong or blocked! Dropped it from storage.",
-                         &ident)?;
+                notify_and_eprint(&format!("ERROR: The stored User PIN for OpenPGP card '{}' seems wrong or blocked! Dropped it from storage.",
+                                          &ident));
             } else {
-                writeln!(stderr,
-                         "ERROR: The stored User PIN for OpenPGP card '{}' seems wrong or blocked! In addition, dropping it from storage failed.",
-                         &ident)?;
+                notify_and_eprint(&format!("ERROR: The stored User PIN for OpenPGP card '{}' seems wrong or blocked! In addition, dropping it from storage failed.",
+                                          &ident));
             }
-        }
 
-        Ok(())
+            Err(std::io::Error::other("Bad stored User PIN.").into())
+        } else {
+            Ok(())
+        }
     } else {
-        Err(std::io::Error::other("No signing PIN configured.").into())
+        notify_and_eprint(&format!(
+            "ERROR: No User PIN is stored in openpgp_card_state for OpenPGP card '{}'.",
+            &ident
+        ));
+
+        Err(std::io::Error::other("No User PIN configured.").into())
     }
 }
 
@@ -106,12 +111,11 @@ pub fn sign(
                 if match_id(fpr.as_bytes(), &signing_key) {
                     // Verify the User PIN (implicitly obtained via openpgp_card_state)
                     let ident = tx.application_identifier()?.ident();
-                    verify_pin_from_backend(&mut tx, &ident, &mut stderr)?;
+                    verify_pin_from_backend(&mut tx, &ident)?;
 
                     // A signer based on the card
                     let cs = CardSlot::init_from_card(&mut tx, KeyType::Signing, &|| {
-                        // FIXME: add notification
-                        eprintln!("touch confirmation required")
+                        notify_and_eprint("touch confirmation required")
                     })?;
 
                     signature = Some(calculate_signature(cs, data)?);
@@ -121,7 +125,10 @@ pub fn sign(
         }
 
         match signature {
-            None => panic!("Found no OpenPGP card for signing key {:?}.", key),
+            None => {
+                notify_and_eprint(&format!("Found no OpenPGP card for signing key {:?}.", key));
+                return Err(std::io::Error::other("No suitable card found.").into());
+            }
             Some(s) => s,
         }
     };
