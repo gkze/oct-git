@@ -15,7 +15,7 @@ fn main() {
         Ok(Mode::Verify {
             signature,
             cert_store,
-        }) => verify(stdin(), stdout(), stderr(), &signature, &cert_store),
+        }) => verify(stdin(), stdout(), stderr(), &signature, cert_store.as_ref()),
         Ok(Mode::Sign(key, armor)) => sign(stdin(), stdout(), stderr(), &key, armor),
         Err(e) => {
             eprintln!("CLI error: {e}");

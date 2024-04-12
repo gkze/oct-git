@@ -36,7 +36,7 @@ fn main(#[files("tests/test-cases/*")] path: PathBuf) -> TestResult {
             &mut stdout,
             &mut stderr,
             &path.join("signature.asc"),
-            &Some(cert_store),
+            Some(&cert_store),
         )
     } {
         eprintln!("An error occurred: {}", e);

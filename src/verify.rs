@@ -6,83 +6,91 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use hex::ToHex;
-use openpgp_cert_d::CertD;
-use pgp::types::KeyTrait;
-use rpgpie::key::checked::CheckedCertificate;
-use rpgpie::key::component::SignedComponentKeyPub;
+use pgp::Signature;
+use rpgpie::key::{checked::CheckedCertificate, component::ComponentKeyPub, SignatureVerifier};
 use rpgpie_certificate_store::Store;
 
+use crate::pki;
+
 pub fn verify(
-    mut stdin: impl Read,
+    mut data: impl Read,
     mut stdout: impl Write,
     mut stderr: impl Write,
-    signature: &PathBuf,
-    cert_store: &Option<PathBuf>,
-) -> std::result::Result<(), Box<dyn std::error::Error>> {
-    let store = if let Some(cert_store) = cert_store {
-        Store::with_base_dir(cert_store)?
-    } else {
-        Store::new()?
+    sig_path: &PathBuf,
+    cert_store_path: Option<&PathBuf>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let store = match cert_store_path {
+        None => Store::new()?,
+        Some(cert_store) => Store::with_base_dir(cert_store)?,
     };
+
+    // Buffer the data (we might need to verify it multiple times, against different certificates)
     let mut buffer = vec![];
-    std::io::copy(&mut stdin, &mut buffer)?;
-    let sig = &rpgpie::sig::load(&mut std::fs::File::open(signature)?)?[0];
-    //capture sigs:
-    //std::fs::copy(signature, "/tmp/data.sig")?;
-    //std::fs::File::create_new("/tmp/data")?.write_all(&buffer)?;
+    std::io::copy(&mut data, &mut buffer)?;
+
+    let sig = &rpgpie::sig::load(&mut std::fs::File::open(sig_path)?)?[0];
+
+    // // capture sigs:
+    // std::fs::copy(signature, "/tmp/data.sig")?;
+    // std::fs::File::create_new("/tmp/data")?.write_all(&buffer)?;
 
     let fingerprints = sig.config.issuer_fingerprint();
-    let fingerprints = fingerprints.iter().map(hex::encode).collect::<Vec<_>>();
-    let mut certs = fingerprints
+
+    let fps_hex = fingerprints.iter().map(hex::encode).collect::<Vec<_>>();
+
+    // look up certificates for the issuer(s) in the cert store
+    let mut certs = fps_hex
         .iter()
         .flat_map(|fpr| store.search_by_fingerprint(fpr).ok())
         .flatten()
         .collect::<Vec<_>>();
+
+    // If our store lookup didn't yield any certificate, we try to find certificates on the koo
+    // keyserver (and persist them in the store, for next time)
     if certs.is_empty() {
-        let store = if let Some(cert_store) = cert_store {
-            CertD::with_base_dir(cert_store)?
-        } else {
-            CertD::new()?
-        };
-        for fingerprint in fingerprints {
-            eprintln!("https://keys.openpgp.org/pks/lookup?op=get&options=mr&search={fingerprint}");
-            if let Ok(response) = reqwest::blocking::get(format!(
-                "https://keys.openpgp.org/pks/lookup?op=get&options=mr&search={fingerprint}"
-            )) {
-                if let Ok(text) = response.text() {
-                    if let Ok(loaded_certs) =
-                        rpgpie::key::Certificate::load(&mut std::io::Cursor::new(text.as_bytes()))
-                    {
-                        for cert in loaded_certs {
-                            let mut w = vec![];
-                            rpgpie::key::Certificate::save(&vec![cert.clone()], false, &mut w)?;
-                            store.insert_data(&w, false, |old, _new| {
-                                Ok(openpgp_cert_d::MergeResult::DataRef(old))
-                            })?;
-                            certs.push(cert);
-                        }
-                    }
-                }
-            }
+        certs = pki::get_keyserver_koo(&fps_hex);
+        for c in &certs {
+            store.insert(c)?;
         }
     }
+
     let valid_sigs = certs
         .iter()
         .flat_map(|cert| {
-            let key: CheckedCertificate = cert.into();
-            key.valid_signing_capable_component_keys_at(&std::time::SystemTime::now().into())
+            let ccert: CheckedCertificate = cert.into();
+            ccert
+                .valid_signing_capable_component_keys_at(&std::time::SystemTime::now().into())
                 .into_iter()
                 .filter_map(|verifier| {
                     verifier
                         .verify(sig, &buffer)
-                        .map(|_| (key.clone(), verifier, sig.clone()))
+                        .map(|_| (ccert.clone(), verifier))
                         .ok()
                 })
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-    for (key, verifier, _sig) in &valid_sigs {
-        if let Some(user_id) = key.primary_user_id() {
+
+    print_results(sig, valid_sigs, &mut stdout, &mut stderr)?;
+
+    Ok(())
+}
+
+/// Output information about the signature verification results.
+///
+/// Note: Some of the output is intended for automated processing.
+fn print_results(
+    sig: &Signature,
+    valid_sigs: Vec<(CheckedCertificate, SignatureVerifier)>,
+    mut stdout: impl Write,
+    mut stderr: impl Write,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // intellij does lookups for:
+    // git log --show-signature --format="%H %G? %GS %GF"
+    // (https://github.com/JetBrains/intellij-community/blob/c856f5fe2ccbee91f8c85d11f94bbaa84af3b557/plugins/git4idea/src/git4idea/log/GitCommitSignatureLoaderBase.kt#L114-L119)
+
+    for (ccert, verifier) in &valid_sigs {
+        if let Some(user_id) = ccert.primary_user_id() {
             writeln!(stderr, "Signed by: {}", user_id.id.id())?;
             writeln!(
                 stdout,
@@ -97,6 +105,7 @@ pub fn verify(
                 verifier.as_componentkey().key_id(),
             )?;
         }
+
         // https://github.com/git/git/blob/11c821f2f2a31e70fb5cc449f9a29401c333aad2/gpg-interface.c#L371
         write!(
             stdout,
@@ -109,11 +118,7 @@ pub fn verify(
         writeln!(
             stderr,
             "Certificate: {}",
-            if let SignedComponentKeyPub::Primary((primary, _)) = key.primary_key() {
-                hex::encode(primary.fingerprint())
-            } else {
-                "unknown".into()
-            }
+            hex::encode(ComponentKeyPub::from(ccert.primary_key()).fingerprint())
         )?;
         writeln!(
             stderr,
@@ -121,7 +126,6 @@ pub fn verify(
             hex::encode(verifier.as_componentkey().fingerprint())
         )?;
     }
-    //eprintln!("VLD: {valid_sigs:?}");
 
     if valid_sigs.is_empty() {
         writeln!(
@@ -134,5 +138,6 @@ pub fn verify(
                 .fold(String::new(), |a, b| a + " " + &b)
         )?;
     }
+
     Ok(())
 }

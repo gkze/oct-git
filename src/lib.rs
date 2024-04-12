@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 pub mod cli;
+mod pki;
 mod sign;
 mod verify;
 
