@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: Wiktor Kwapisiewicz <wiktor@metacode.biz>
+SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
+SPDX-License-Identifier: CC-BY-SA-4.0
+-->
+
 # 🐒️🥯️
 
 Git signing and verification with OpenPGP cards.
