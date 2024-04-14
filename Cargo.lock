@@ -166,9 +166,9 @@ dependencies = [
 
 [[package]]
 name = "async-channel"
-version = "2.2.0"
+version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f28243a43d821d11341ab73c80bed182dc015c514b951616cf79bd4af39af0c3"
+checksum = "136d4d23bcc79e27423727b36823d86233aad06dfea531837b038394d11e9928"
 dependencies = [
  "concurrent-queue",
  "event-listener 5.3.0",
@@ -179,11 +179,10 @@ dependencies = [
 
 [[package]]
 name = "async-executor"
-version = "1.10.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f98c37cf288e302c16ef6c8472aad1e034c6c84ce5ea7b8101c98eb4a802fee"
+checksum = "b10202063978b3351199d68f8b22c4e47e4b1b822f8d43fd862d5ea8c006b29a"
 dependencies = [
- "async-lock 3.3.0",
  "async-task",
  "concurrent-queue",
  "fastrand 2.0.2",
@@ -573,9 +572,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.0.92"
+version = "1.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2678b2e3449475e95b0aa6f9b506a28e61b3dc8996592b983695e8ebb58a8b41"
+checksum = "17f6e324229dc011159fcc089755d1e2e216a90d43a7dea6853ca740b84f35e7"
 
 [[package]]
 name = "cfb-mode"
@@ -2108,9 +2107,9 @@ dependencies = [
 
 [[package]]
 name = "num"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b05180d69e3da0e530ba2a1dae5110317e49e3b7f3d41be227dc5f92e49ee7af"
+checksum = "3135b08af27d103b0a51f2ae0f8632117b7b185ccf931445affa8df530576a41"
 dependencies = [
  "num-bigint",
  "num-complex",
@@ -2316,15 +2315,16 @@ dependencies = [
 
 [[package]]
 name = "openpgp-card-rpgp"
-version = "0.0.1"
+version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "719f07e6d552a2292542aeef5bd98d4c497068dc2374a9341c8df37915dd6e30"
+checksum = "4e9c98c90642fc55b7c2e5b3a065860d71fb4c379c4926753405d813ab9ea754"
 dependencies = [
  "chrono",
  "openpgp-card",
  "pgp",
  "rand",
  "rsa",
+ "thiserror",
 ]
 
 [[package]]
@@ -2957,11 +2957,10 @@ dependencies = [
 
 [[package]]
 name = "rpgpie"
-version = "0.0.5"
+version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8865c70ef769a8c1ef7712f21653e333487e69f3998d9910680c0664bf85214"
+checksum = "19126d4112e0f74f39d6890c7f43dafb902b2f4d027f4a772cd4abe661e69dcf"
 dependencies = [
- "anyhow",
  "card-backend-pcsc",
  "chrono",
  "log",
@@ -2971,13 +2970,14 @@ dependencies = [
  "pgp",
  "rand",
  "rand_core",
+ "thiserror",
 ]
 
 [[package]]
 name = "rpgpie-certificate-store"
-version = "0.0.2"
+version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a068741cf9ea7dd92dca1df6cc5449e99e3fad196787ea0d7a0d9ba97d73e2b"
+checksum = "ecff954f528d8997e124ee73f9b449423b13126cc229c9b788a0e82991d75638"
 dependencies = [
  "diesel",
  "diesel_migrations",
@@ -2986,6 +2986,7 @@ dependencies = [
  "log",
  "openpgp-cert-d",
  "rpgpie",
+ "thiserror",
 ]
 
 [[package]]
