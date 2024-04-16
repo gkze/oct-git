@@ -54,9 +54,12 @@ fn verify_pin_from_backend(
 ///
 /// The identifier stored in git must reflect the signing key that should be used for signing.
 fn match_id(card_fp: &[u8], git: &[u8]) -> bool {
+    const FP_V4_LEN: usize = 20;
+    const KEYID_LEN: usize = 8;
+
     match (card_fp.len(), git.len()) {
-        (20, 20) => card_fp == git,
-        (20, 8) => &card_fp[12..] == git, // match `git` as a v4 key id
+        (FP_V4_LEN, FP_V4_LEN) => card_fp == git,
+        (FP_V4_LEN, KEYID_LEN) => &card_fp[FP_V4_LEN - KEYID_LEN..] == git, // match `git` as a v4 key id
         _ => false,
     }
 }
