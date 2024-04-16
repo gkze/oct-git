@@ -21,6 +21,7 @@ fn signing_key() -> TestResult {
             &mut stderr,
             "file::tests/signing-key.pgp",
             Armor::Armor,
+            None,
         )
     } {
         eprintln!("An error occurred: {}", e);

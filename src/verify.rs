@@ -8,7 +8,6 @@ use std::path::PathBuf;
 use hex::ToHex;
 use pgp::Signature;
 use rpgpie::key::{checked::CheckedCertificate, component::ComponentKeyPub, SignatureVerifier};
-use rpgpie_certificate_store::Store;
 
 use crate::pki;
 
@@ -19,10 +18,7 @@ pub fn verify(
     sig_path: &PathBuf,
     cert_store_path: Option<&PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let store = match cert_store_path {
-        None => Store::new()?,
-        Some(cert_store) => Store::with_base_dir(cert_store)?,
-    };
+    let store = crate::open_store(cert_store_path)?;
 
     // Buffer the data (we might need to verify it multiple times, against different certificates)
     let mut buffer = vec![];

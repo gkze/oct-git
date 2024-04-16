@@ -52,7 +52,11 @@ pub enum Mode {
         signature: PathBuf,
         cert_store: Option<PathBuf>,
     },
-    Sign(String, Armor),
+    Sign {
+        id: String,
+        armor: Armor,
+        cert_store: Option<PathBuf>,
+    },
 }
 
 impl TryFrom<Args> for Mode {
@@ -70,14 +74,15 @@ impl TryFrom<Args> for Mode {
             }
         } else if value.detach_sign {
             if let Some(user_id) = value.user_id {
-                Ok(Mode::Sign(
-                    user_id,
-                    if value.armor {
+                Ok(Mode::Sign {
+                    id: user_id,
+                    armor: if value.armor {
                         Armor::Armor
                     } else {
                         Armor::NoArmor
                     },
-                ))
+                    cert_store: value.cert_store,
+                })
             } else {
                 Err("The -u parameter is required. Please provide a hex-encoded signing subkey fingerprint with no spaces".into())
             }

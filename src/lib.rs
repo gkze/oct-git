@@ -8,5 +8,17 @@ mod pki;
 mod sign;
 mod verify;
 
+use std::path::PathBuf;
+
+use rpgpie_certificate_store::Store;
 pub use sign::sign;
 pub use verify::verify;
+
+pub(crate) fn open_store(
+    cert_store_path: Option<&PathBuf>,
+) -> Result<Store, rpgpie_certificate_store::Error> {
+    match cert_store_path {
+        None => Ok(Store::new()?),
+        Some(cert_store) => Ok(Store::with_base_dir(cert_store)?),
+    }
+}

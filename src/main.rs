@@ -16,7 +16,11 @@ fn main() {
             signature,
             cert_store,
         }) => verify(stdin(), stdout(), stderr(), &signature, cert_store.as_ref()),
-        Ok(Mode::Sign(key, armor)) => sign(stdin(), stdout(), stderr(), &key, armor),
+        Ok(Mode::Sign {
+            id,
+            armor,
+            cert_store,
+        }) => sign(stdin(), stdout(), stderr(), &id, armor, cert_store.as_ref()),
         Err(e) => {
             eprintln!("CLI error: {e}");
             std::process::exit(1);

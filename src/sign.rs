@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::io::{Read, Write};
+use std::path::PathBuf;
 
 use card_backend_pcsc::PcscBackend;
 use openpgp_card::ocard::KeyType;
@@ -10,6 +11,7 @@ use openpgp_card_rpgp::CardSlot;
 use pgp::packet::{SignatureConfig, SignatureType, SignatureVersion, Subpacket, SubpacketData};
 use pgp::types::{KeyVersion, SecretKeyTrait};
 use pgp::{ArmorOptions, Deserializable, Signature, SignedSecretKey, StandaloneSignature};
+use rpgpie::key::checked::CheckedCertificate;
 
 use crate::cli;
 use crate::notify::notify_and_eprint;
@@ -64,10 +66,73 @@ fn match_id(card_fp: &[u8], git: &[u8]) -> bool {
     }
 }
 
-/// `key` identifies the key to be used for signing.
+/// Try to look up the git-provided signer_id from the certificate store.
+/// If it yields a result, get all of its signing capable subkey fingerprints (if any).
 ///
-/// It can contain a reference to a key in two different formats:
-/// 1. a Fingerprint or Key ID, in hexdecimal notation, optionally prefixed with `0x`.
+/// If no fingerprint can be found via that store, this returns the original `signer_id` in
+/// Vec<u8> notation, so that the following code can try finding this exact fingerprint in a card
+/// signing key slots.
+fn lookup_signer_id_in_store(
+    signer_id: &str,
+    cert_store_path: Option<&PathBuf>,
+) -> Result<Vec<Vec<u8>>, hex::FromHexError> {
+    // Look up candidates for the signer certificate from the cert-d store
+    // (but never fail/error out, whatever happens)
+    let store = crate::open_store(cert_store_path).ok();
+
+    let signer_certs = if let Some(store) = store {
+        match signer_id.len() {
+            40 => store.search_by_fingerprint(signer_id).ok(),
+            16 => store.search_by_key_id(signer_id).ok(),
+            _ => None,
+        }
+    } else {
+        None
+    };
+
+    // we will only consider one certificate from the public cert store, or none.
+    // pick one.
+    let signer_cert = signer_certs
+        .and_then(move |mut s| match s.len() {
+            0 => {
+                // maybe log?
+                None
+            }
+            1 => Some(s.pop().unwrap()),
+            _ => {
+                eprintln!("Warning: Found more than one certificate for signer id {} in the local certificate store", signer_id);
+                eprintln!("Please specify a unique fingerprint in the git configuration");
+
+                None
+            }
+        });
+
+    let signer_ids = match signer_cert {
+        None => vec![hex::decode(signer_id)?],
+        Some(c) => {
+            let ccert = CheckedCertificate::from(&c);
+
+            let signer_fps: Vec<_> = ccert
+                .valid_signing_capable_component_keys_at(&std::time::SystemTime::now().into())
+                .iter()
+                .map(|sv| sv.as_componentkey().fingerprint())
+                .collect();
+
+            if !signer_fps.is_empty() {
+                signer_fps
+            } else {
+                vec![hex::decode(signer_id)?]
+            }
+        }
+    };
+
+    Ok(signer_ids)
+}
+
+/// `id` identifies the key to be used for signing.
+///
+/// It can contain a reference to a key in two different formats (as provided by git):
+/// 1. a Fingerprint or Key ID, in hexadecimal notation, optionally prefixed with `0x`.
 /// 2. The format "`file::<path>`" points to a TSK that contains private key material to be used for
 ///    signing (this mode is currently only intended for testing, and doesn't support
 ///    password-protected keys).
@@ -82,25 +147,25 @@ pub fn sign(
     data: impl Read,
     mut stdout: impl Write,
     mut stderr: impl Write,
-    key: &str,
+    mut signer_id: &str,
     armor: cli::Armor,
+    cert_store_path: Option<&PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // TODO: Optionally lookup the signer certificate from the cert-d store?
-    let signature = if let Some(file_name) = key.strip_prefix("file::") {
+    let signature = if let Some(file_name) = signer_id.strip_prefix("file::") {
         // We're using a software key to perform the signing operation
         let signer = SignedSecretKey::from_bytes(std::fs::File::open(file_name)?)?;
 
-        // FIXME: implicitly signs with the primary key
+        // FIXME: this call implicitly signs with the primary key
         calculate_signature(signer, data)?
     } else {
         // We're trying to use an OpenPGP card to perform the signing operation
 
-        // Fingerprint or Key ID of the signing key (provided by git)
-        let signing_key = if let Some(hex_fpr) = key.strip_prefix("0x") {
-            hex::decode(hex_fpr)?
-        } else {
-            hex::decode(key)?
-        };
+        // strip "0x" prefix, if any
+        if signer_id.starts_with("0x") {
+            signer_id = &signer_id[2..];
+        }
+
+        let signer_ids = lookup_signer_id_in_store(signer_id, cert_store_path)?;
 
         let mut signature = None;
 
@@ -109,9 +174,12 @@ pub fn sign(
             let mut card = openpgp_card::Card::new(card)?;
             let mut tx = card.transaction()?;
 
-            if let Some(fpr) = tx.fingerprint(KeyType::Signing)? {
-                // Does this card contain the signing key that git is asking us to use?
-                if match_id(fpr.as_bytes(), &signing_key) {
+            if let Some(card_sig_fp) = tx.fingerprint(KeyType::Signing)? {
+                // Does this card contain a signing key that matches what git is asking us to use?
+                if signer_ids
+                    .iter()
+                    .any(|id| match_id(card_sig_fp.as_bytes(), id))
+                {
                     // Verify the User PIN (implicitly obtained via openpgp_card_state)
                     let ident = tx.application_identifier()?.ident();
                     verify_pin_from_backend(&mut tx, &ident)?;
@@ -129,7 +197,10 @@ pub fn sign(
 
         match signature {
             None => {
-                notify_and_eprint(&format!("Found no OpenPGP card for signing key {:?}.", key));
+                notify_and_eprint(&format!(
+                    "Found no OpenPGP card for configured identity {:?}.",
+                    signer_id
+                ));
                 return Err(std::io::Error::other("No suitable card found.").into());
             }
             Some(s) => s,
