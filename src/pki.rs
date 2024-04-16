@@ -12,7 +12,7 @@ pub(crate) fn get_keyserver_koo(fingerprints: &[String]) -> Vec<Certificate> {
 
     for fingerprint in fingerprints {
         let search = format!("{KOO_SEARCH}{fingerprint}");
-        eprintln!("{search}");
+        log::info!("get_keyserver_koo: {search}");
 
         if let Ok(response) = reqwest::blocking::get(search) {
             if let Ok(text) = response.text() {

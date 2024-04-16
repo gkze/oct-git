@@ -9,6 +9,8 @@ use monkeybagel::cli::{Args, Mode};
 use monkeybagel::{sign, verify};
 
 fn main() {
+    env_logger::init();
+
     let args = Args::parse();
 
     let res = match Mode::try_from(args) {

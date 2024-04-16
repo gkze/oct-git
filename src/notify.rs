@@ -13,7 +13,7 @@ pub(crate) fn notify(msg: &str) {
         .timeout(std::time::Duration::from_secs(15))
         .show()
     {
-        eprintln!("Failure in notify_rust: {:?}", e);
+        log::error!("Failure in notify_rust: {:?}", e);
     }
 }
 

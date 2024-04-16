@@ -9,6 +9,8 @@ use testresult::TestResult;
 
 #[test]
 fn signing_key() -> TestResult {
+    env_logger::init();
+
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
 

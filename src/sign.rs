@@ -22,8 +22,9 @@ fn verify_pin_from_backend(
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Ok(Some(pin)) = openpgp_card_state::get_pin(ident) {
         if tx.card().verify_pw1_sign(pin.as_bytes()).is_err() {
-            // We drop the PIN from the state backend, to avoid exhausting
-            // the retry counter and locking up the User PIN.
+            // We drop the PIN from the state backend to avoid exhausting the retry counter
+            // (and locking up the User PIN).
+            log::info!("Dropping User PIN for {} from openpgp_card_state", ident);
             let res = openpgp_card_state::drop_pin(ident);
 
             if res.is_ok() {
