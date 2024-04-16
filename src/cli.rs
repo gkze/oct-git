@@ -66,7 +66,7 @@ impl TryFrom<Args> for Mode {
                     cert_store: value.cert_store,
                 })
             } else {
-                Err("Verification of other files than stdin is unsupported. Use -".into())
+                Err("Verification of files other than stdin is unsupported. Use -".into())
             }
         } else if value.detach_sign {
             if let Some(user_id) = value.user_id {
@@ -79,12 +79,12 @@ impl TryFrom<Args> for Mode {
                     },
                 ))
             } else {
-                Err("-u parameter is required. Please use hex-encoded signing subkey with no spaces".into())
+                Err("The -u parameter is required. Please provide a hex-encoded signing subkey fingerprint with no spaces".into())
             }
         } else if value.sign {
-            Err("Inline sign is not supported. Use --detach-sign".into())
+            Err("Inline signing is not supported. Use --detach-sign".into())
         } else {
-            Err("Unknown mode: only verify and detach-sign operations are supported.".into())
+            Err("Unknown operation: only verify and detach-sign are supported.".into())
         }
     }
 }
