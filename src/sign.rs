@@ -145,8 +145,8 @@ fn lookup_signer_id_in_store(
 /// subkeys by primary fingerprint.)
 pub fn sign(
     data: impl Read,
-    mut stdout: impl Write,
-    mut stderr: impl Write,
+    mut out: impl Write,
+    mut err: impl Write,
     mut signer_id: &str,
     armor: cli::Armor,
     cert_store_path: Option<&PathBuf>,
@@ -209,12 +209,12 @@ pub fn sign(
 
     match armor {
         cli::Armor::Armor => StandaloneSignature { signature }
-            .to_armored_writer(&mut stdout, ArmorOptions::default())?,
-        cli::Armor::NoArmor => pgp::packet::write_packet(&mut stdout, &signature)?,
+            .to_armored_writer(&mut out, ArmorOptions::default())?,
+        cli::Armor::NoArmor => pgp::packet::write_packet(&mut out, &signature)?,
     }
 
     // https://github.com/git/git/blob/11c821f2f2a31e70fb5cc449f9a29401c333aad2/gpg-interface.c#L994
-    writeln!(stderr, "\n[GNUPG:] SIG_CREATED ")?;
+    writeln!(err, "\n[GNUPG:] SIG_CREATED ")?;
 
     Ok(())
 }

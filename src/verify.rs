@@ -13,8 +13,8 @@ use crate::pki;
 
 pub fn verify(
     mut data: impl Read,
-    mut stdout: impl Write,
-    mut stderr: impl Write,
+    mut out: impl Write,
+    mut err: impl Write,
     sig_path: &PathBuf,
     cert_store_path: Option<&PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -67,7 +67,7 @@ pub fn verify(
         })
         .collect::<Vec<_>>();
 
-    print_results(sig, valid_sigs, &mut stdout, &mut stderr)?;
+    print_results(sig, valid_sigs, &mut out, &mut err)?;
 
     Ok(())
 }
@@ -78,8 +78,8 @@ pub fn verify(
 fn print_results(
     sig: &Signature,
     valid_sigs: Vec<(CheckedCertificate, SignatureVerifier)>,
-    mut stdout: impl Write,
-    mut stderr: impl Write,
+    mut out: impl Write,
+    mut err: impl Write,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // intellij does lookups for:
     // git log --show-signature --format="%H %G? %GS %GF"
@@ -87,16 +87,16 @@ fn print_results(
 
     for (ccert, verifier) in &valid_sigs {
         if let Some(user_id) = ccert.primary_user_id() {
-            writeln!(stderr, "Signed by: {}", user_id.id.id())?;
+            writeln!(err, "Signed by: {}", user_id.id.id())?;
             writeln!(
-                stdout,
+                out,
                 "\n[GNUPG:] GOODSIG {:X} {}",
                 verifier.as_componentkey().key_id(),
                 user_id.id.id()
             )?;
         } else {
             writeln!(
-                stdout,
+                out,
                 "\n[GNUPG:] GOODSIG {:X}",
                 verifier.as_componentkey().key_id(),
             )?;
@@ -104,7 +104,7 @@ fn print_results(
 
         // https://github.com/git/git/blob/11c821f2f2a31e70fb5cc449f9a29401c333aad2/gpg-interface.c#L371
         write!(
-            stdout,
+            out,
             "[GNUPG:] VALIDSIG {}",
             verifier
                 .as_componentkey()
@@ -112,12 +112,12 @@ fn print_results(
                 .encode_hex_upper::<String>()
         )?;
         writeln!(
-            stderr,
+            err,
             "Certificate: {}",
             hex::encode(ComponentKeyPub::from(ccert.primary_key()).fingerprint())
         )?;
         writeln!(
-            stderr,
+            err,
             "Signing key: {}",
             hex::encode(verifier.as_componentkey().fingerprint())
         )?;
@@ -125,7 +125,7 @@ fn print_results(
 
     if valid_sigs.is_empty() {
         writeln!(
-            stderr,
+            err,
             "No valid sigs for signing key {}",
             sig.config
                 .issuer_fingerprint()
