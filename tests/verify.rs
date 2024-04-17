@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use monkeybagel::verify;
+use openpgp_card_tool_git::verify;
 use rstest::rstest;
 use testresult::TestResult;
 

@@ -3,9 +3,12 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
 [package]
-name = "monkeybagel"
+name = "openpgp-card-tool-git"
 version = "0.1.0"
 edition = "2021"
+
+[[bin]]
+name = "oct-git"
 
 [dependencies]
 card-backend-pcsc = "0.5"

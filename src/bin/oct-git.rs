@@ -5,8 +5,8 @@
 use std::io::{stderr, stdin, stdout};
 
 use clap::Parser;
-use monkeybagel::cli::{Args, Mode};
-use monkeybagel::{sign, verify};
+use openpgp_card_tool_git::cli::{Args, Mode};
+use openpgp_card_tool_git::{sign, verify};
 
 fn main() {
     env_logger::init();

@@ -2052,29 +2052,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "monkeybagel"
-version = "0.1.0"
-dependencies = [
- "card-backend-pcsc",
- "clap",
- "env_logger",
- "hex",
- "log",
- "notify-rust",
- "openpgp-card",
- "openpgp-card-rpgp",
- "openpgp-card-state",
- "openpgp-cert-d",
- "pgp",
- "reqwest",
- "rpgpie",
- "rpgpie-certificate-store",
- "rstest",
- "testdir",
- "testresult",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2369,6 +2346,29 @@ dependencies = [
  "confy",
  "keyring",
  "serde",
+]
+
+[[package]]
+name = "openpgp-card-tool-git"
+version = "0.1.0"
+dependencies = [
+ "card-backend-pcsc",
+ "clap",
+ "env_logger",
+ "hex",
+ "log",
+ "notify-rust",
+ "openpgp-card",
+ "openpgp-card-rpgp",
+ "openpgp-card-state",
+ "openpgp-cert-d",
+ "pgp",
+ "reqwest",
+ "rpgpie",
+ "rpgpie-certificate-store",
+ "rstest",
+ "testdir",
+ "testresult",
 ]
 
 [[package]]
