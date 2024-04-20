@@ -13,8 +13,8 @@ use pgp::types::{KeyVersion, SecretKeyTrait};
 use pgp::{ArmorOptions, Deserializable, Signature, SignedSecretKey, StandaloneSignature};
 use rpgpie::key::checked::CheckedCertificate;
 
-use crate::cli;
 use crate::notify::notify_and_eprint;
+use crate::{cli, pki};
 
 fn verify_pin_from_backend(
     tx: &mut openpgp_card::Card<openpgp_card::state::Transaction>,
@@ -76,23 +76,36 @@ fn match_id(card_fp: &[u8], git: &[u8]) -> bool {
 fn lookup_signer_id_in_store(
     signer_id: &str,
     cert_store_path: Option<&PathBuf>,
-) -> Result<Vec<Vec<u8>>, hex::FromHexError> {
+) -> Result<Vec<Vec<u8>>, Box<dyn std::error::Error>> {
     // Look up candidates for the signer certificate from the cert-d store
-    // (but never fail/error out, whatever happens)
-    let store = crate::open_store(cert_store_path).ok();
+    let Some(store) = crate::open_store(cert_store_path).ok() else {
+        // No store: we'll stop pursuing lookup
 
-    let signer_certs = if let Some(store) = store {
-        match signer_id.len() {
-            40 => store.search_by_fingerprint(signer_id).ok(),
-            16 => store.search_by_key_id(signer_id).ok(),
-            _ => None,
-        }
-    } else {
-        None
+        return Ok(vec![hex::decode(signer_id)?]);
     };
 
-    // we will only consider one certificate from the public cert store, or none.
-    // pick one.
+    let mut signer_certs = match signer_id.len() {
+        40 => store.search_by_fingerprint(signer_id).ok(),
+        16 => store.search_by_key_id(signer_id).ok(),
+        _ => None,
+    };
+
+    // if we didn't find any candidate Certificates in the local store, ask koo
+    if let Some(certs) = &signer_certs {
+        if certs.is_empty() {
+            // try polling from KOO ...
+            let koo = pki::get_keyserver_koo(&[signer_id.to_string()]);
+
+            // ... and store results in certd, if any
+            for c in &koo {
+                store.insert(c)?;
+            }
+
+            signer_certs = Some(koo);
+        }
+    }
+
+    // we will only consider the certificate if we got exactly one.
     let signer_cert = signer_certs
         .and_then(move |mut s| match s.len() {
             0 => {
