@@ -1,0 +1,6 @@
+[[cards]]
+ident = "0000:00000000"
+nickname = "virtual opcard-rs"
+
+[cards.pin_storage]
+Direct = "123456"
