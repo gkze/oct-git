@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 /// Notification title
-const NAME: &str = env!("CARGO_CRATE_NAME");
+const NAME: &str = "openpgp-card-tool-git";
 
 #[cfg(feature = "notify")]
 pub(crate) fn notify(msg: &str) {
