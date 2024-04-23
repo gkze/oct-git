@@ -57,6 +57,12 @@ fn verify_pin_from_backend(
 ///
 /// The identifier stored in git must reflect the signing key that should be used for signing.
 fn match_id(card_fp: &[u8], git: &[u8]) -> bool {
+    log::debug!(
+        "matching card slot {:02x?} and requested ID {:02x?}",
+        card_fp,
+        git
+    );
+
     const FP_V4_LEN: usize = 20;
     const KEYID_LEN: usize = 8;
 
@@ -165,6 +171,8 @@ pub fn sign(
     armor: cli::Armor,
     cert_store_path: Option<&PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    log::info!("called for signer_id: {:02x?}", signer_id);
+
     let signature = if let Some(file_name) = signer_id.strip_prefix("file::") {
         // We're using a software key to perform the signing operation
         let signer = SignedSecretKey::from_bytes(std::fs::File::open(file_name)?)?;
@@ -180,6 +188,8 @@ pub fn sign(
         }
 
         let signer_ids = lookup_signer_id_in_store(signer_id, cert_store_path)?;
+
+        log::info!("looking for card with signer_id(s): {:02x?}", signer_ids);
 
         let mut signature = None;
 
