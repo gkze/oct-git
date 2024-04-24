@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+mod card;
 pub mod cli;
 mod notify;
 mod pki;
@@ -10,6 +11,7 @@ mod verify;
 
 use std::path::PathBuf;
 
+pub use card::set_pin;
 use rpgpie_certificate_store::Store;
 pub use sign::sign;
 pub use verify::verify;

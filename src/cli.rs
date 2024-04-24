@@ -39,6 +39,10 @@ pub struct Args {
     /// Also see <https://datatracker.ietf.org/doc/draft-nwjw-openpgp-cert-d/>
     #[clap(short, long, env = "PGP_CERT_D")]
     pub cert_store: Option<PathBuf>,
+
+    /// Store User PIN for an OpenPGP card in openpgp-card-state
+    #[clap(long)]
+    pub store_card_pin: bool,
 }
 
 #[derive(Copy, Clone)]
@@ -57,13 +61,16 @@ pub enum Mode {
         armor: Armor,
         cert_store: Option<PathBuf>,
     },
+    StoreCardPin,
 }
 
 impl TryFrom<Args> for Mode {
     type Error = String;
 
     fn try_from(value: Args) -> Result<Self, Self::Error> {
-        if let Some(signature) = value.verify {
+        if value.store_card_pin {
+            Ok(Mode::StoreCardPin)
+        } else if let Some(signature) = value.verify {
             if Some("-".into()) == value.file_to_verify {
                 Ok(Mode::Verify {
                     signature,

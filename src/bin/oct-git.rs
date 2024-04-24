@@ -6,7 +6,7 @@ use std::io::{stderr, stdin, stdout};
 
 use clap::Parser;
 use openpgp_card_tool_git::cli::{Args, Mode};
-use openpgp_card_tool_git::{sign, verify};
+use openpgp_card_tool_git::{set_pin, sign, verify};
 
 fn main() {
     env_logger::init();
@@ -23,6 +23,7 @@ fn main() {
             armor,
             cert_store,
         }) => sign(stdin(), stdout(), stderr(), &id, armor, cert_store.as_ref()),
+        Ok(Mode::StoreCardPin) => set_pin(),
         Err(e) => {
             eprintln!("CLI error: {e}");
             std::process::exit(1);
