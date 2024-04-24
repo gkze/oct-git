@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: CC0-1.0
+
+steps:
+  reuse:
+    image: fsfe/reuse:latest
+
+  rustfmt:
+    image: rust
+    commands:
+      - rustup toolchain install nightly && rustup component add --toolchain nightly rustfmt
+      - cargo +nightly fmt -- --check
+
+  clippy:
+    image: rust
+    commands:
+      - rustup component add clippy
+      - apt update -y -qq && apt install -y -qq --no-install-recommends libpcsclite-dev
+      - cargo clippy --no-deps --tests --examples
+
+  virtual-loop-cv25519:
+    image: registry.gitlab.com/openpgp-card/virtual-cards/opcard-rs-tools
+    pull: true
+#    depends_on: [ clippy ]
+    commands:
+      - sh /start.sh # Start pcscd, virtual OpenPGP card
+      - cargo --version
+      - tests/loop/run.sh cv25519
+
+  virtual-loop-rsa2048:
+    image: registry.gitlab.com/openpgp-card/virtual-cards/opcard-rs-tools
+    pull: true
+    #    depends_on: [ clippy ]
+    commands:
+      - sh /start.sh # Start pcscd, virtual OpenPGP card
+      - cargo --version
+      - tests/loop/run.sh rsa2048
