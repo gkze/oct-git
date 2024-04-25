@@ -16,6 +16,7 @@ use rpgpie::key::checked::CheckedCertificate;
 use crate::notify::notify_and_eprint;
 use crate::{cli, pki};
 
+/// Attempt to present the User PIN to the card, for signing
 fn verify_pin_from_backend(
     tx: &mut openpgp_card::Card<openpgp_card::state::Transaction>,
     ident: &str,
@@ -27,21 +28,23 @@ fn verify_pin_from_backend(
             log::info!("Dropping User PIN for {} from openpgp_card_state", ident);
             let res = openpgp_card_state::drop_pin(ident);
 
-            if res.is_ok() {
-                notify_and_eprint(&format!("ERROR: The stored User PIN for OpenPGP card '{}' seems wrong or blocked! Dropped it from storage.",
-                                          &ident));
-            } else {
-                notify_and_eprint(&format!("ERROR: The stored User PIN for OpenPGP card '{}' seems wrong or blocked! In addition, dropping it from storage failed.",
-                                          &ident));
+            match res {
+                Ok(()) => notify_and_eprint(&format!(
+                    "Card {} rejected stored User PIN, dropped PIN from storage.",
+                    &ident
+                )),
+                Err(e) => notify_and_eprint(&format!(
+                    "Card {} rejected stored User PIN, and dropping PIN from storage failed: {}.",
+                    &ident, e
+                )),
             }
-
             Err(std::io::Error::other("Bad stored User PIN.").into())
         } else {
             Ok(())
         }
     } else {
         notify_and_eprint(&format!(
-            "ERROR: No User PIN is stored in openpgp_card_state for OpenPGP card '{}'.",
+            "Missing User PIN for {}. Run 'oct-git --store-card-pin' to fix.",
             &ident
         ));
 
@@ -191,6 +194,9 @@ pub fn sign(
 
         log::info!("looking for card with signer_id(s): {:02x?}", signer_ids);
 
+        // Have we seen a card with the key that git asks for?
+        let mut matching_card = false;
+
         let mut signature = None;
 
         for card in PcscBackend::cards(None)? {
@@ -204,13 +210,15 @@ pub fn sign(
                     .iter()
                     .any(|id| match_id(card_sig_fp.as_bytes(), id))
                 {
+                    matching_card = true;
+
                     // Verify the User PIN (implicitly obtained via openpgp_card_state)
                     let ident = tx.application_identifier()?.ident();
                     verify_pin_from_backend(&mut tx, &ident)?;
 
                     // A signer based on the card
                     let cs = CardSlot::init_from_card(&mut tx, KeyType::Signing, &|| {
-                        notify_and_eprint("touch confirmation required")
+                        notify_and_eprint("Touch confirmation required.")
                     })?;
 
                     signature = Some(calculate_signature(cs, data)?);
@@ -219,13 +227,18 @@ pub fn sign(
             }
         }
 
+        if !matching_card {
+            notify_and_eprint(&format!("No OpenPGP card found for key {:?}.", signer_id));
+            return Err(std::io::Error::other("No suitable card found.").into());
+        }
+
         match signature {
             None => {
                 notify_and_eprint(&format!(
-                    "Found no OpenPGP card for configured identity {:?}.",
+                    "Failed to create a signature for {:?}.",
                     signer_id
                 ));
-                return Err(std::io::Error::other("No suitable card found.").into());
+                return Err(std::io::Error::other("Failed to create a signature.").into());
             }
             Some(s) => s,
         }
