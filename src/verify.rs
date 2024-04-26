@@ -64,11 +64,18 @@ pub fn verify(
 
     let fps_hex = signer_fps(&sig.config);
 
+    let sig_creation = sig.config.created().expect("FIXME");
+
     // look up certificates for the issuer(s) in the cert store
     let mut certs = fps_hex
         .iter()
         .flat_map(|fpr| store.search_by_fingerprint(fpr).ok())
         .flatten()
+        .filter(|c| {
+            !CheckedCertificate::from(c)
+                .valid_signing_capable_component_keys_at(sig_creation)
+                .is_empty()
+        })
         .collect::<Vec<_>>();
 
     let key_ids_hex = signer_key_ids(&sig.config);
@@ -78,15 +85,34 @@ pub fn verify(
             .iter()
             .flat_map(|key_id| store.search_by_key_id(key_id).ok())
             .flatten()
+            .filter(|c| {
+                !CheckedCertificate::from(c)
+                    .valid_signing_capable_component_keys_at(sig_creation)
+                    .is_empty()
+            })
             .collect::<Vec<_>>();
     }
 
     // If our store lookups didn't yield any certificate, we try to find certificates on the koo
     // keyserver, first by fingerprint, then by key id
     if certs.is_empty() {
-        certs = pki::get_keyserver_koo(&fps_hex);
+        certs = pki::get_keyserver_koo(&fps_hex)
+            .into_iter()
+            .filter(|c| {
+                !CheckedCertificate::from(c)
+                    .valid_signing_capable_component_keys_at(sig_creation)
+                    .is_empty()
+            })
+            .collect();
         if certs.is_empty() {
-            certs = pki::get_keyserver_koo(&key_ids_hex);
+            certs = pki::get_keyserver_koo(&key_ids_hex)
+                .into_iter()
+                .filter(|c| {
+                    !CheckedCertificate::from(c)
+                        .valid_signing_capable_component_keys_at(sig_creation)
+                        .is_empty()
+                })
+                .collect();
         }
 
         // ... persist any results, for next time
