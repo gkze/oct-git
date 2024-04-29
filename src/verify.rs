@@ -126,7 +126,7 @@ pub fn verify(
         .flat_map(|cert| {
             let ccert: CheckedCertificate = cert.into();
             ccert
-                .valid_signing_capable_component_keys_at(&std::time::SystemTime::now().into())
+                .valid_signing_capable_component_keys_at(sig_creation)
                 .into_iter()
                 .filter_map(|verifier| {
                     verifier
