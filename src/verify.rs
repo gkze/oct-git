@@ -4,13 +4,16 @@
 
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 use hex::ToHex;
 use pgp::packet::SignatureConfig;
 use pgp::Signature;
+use rpgpie::key::component::{SignedComponentKey, SignedComponentKeyPub};
 use rpgpie::key::{
     checked::CheckedCertificate, component::ComponentKeyPub, Certificate, SignatureVerifier,
 };
+use rpgpie::sig::stack::SigStack;
 
 /// List of hex encoded (lowercase) issuer fingerprints
 fn signer_fps(sc: &SignatureConfig) -> Vec<String> {
@@ -182,17 +185,73 @@ fn print_results(
     }
 
     for (ccert, verifier) in &valid_sigs {
+        let fp = verifier.as_componentkey().fingerprint();
+
+        let now = SystemTime::now().into();
+
+        let cert_revoked = SignedComponentKey::Pub(ccert.primary_key().clone()).revoked(&now);
+
+        // Is the primary invalid in any way?
+        let cert_invalid = !ccert.primary_valid_at(&now)?;
+
+        let sk: Vec<_> = std::iter::once(ccert.primary_key())
+            .chain(ccert.subkeys())
+            .filter(|sk| ComponentKeyPub::from(sk.clone()).fingerprint() == fp)
+            .collect();
+
+        assert_eq!(sk.len(), 1); // FIXME
+        let sckp = &sk[0];
+        let sck = SignedComponentKey::Pub(sckp.clone());
+
+        let ckey_revoked = sck.revoked(&now);
+        let ckey_invalid = match sckp {
+            SignedComponentKeyPub::Primary(_) => cert_invalid,
+            SignedComponentKeyPub::Subkey((spsk, _)) => {
+                // FIXME: rpgpie needs a more convenient API for this
+                let stack = SigStack::from_iter(spsk.signatures.iter());
+
+                !stack.has_valid_binding_at(&now, spsk.key.created_at())
+            }
+        };
+
+        // FIXME: ckey otherwise invalid?
+
+        fn revoked_str(rev: bool) -> &'static str {
+            if rev {
+                " [revoked]"
+            } else {
+                ""
+            }
+        }
+
+        // FIXME: this is messy: we print "expired" because that's the most likely case for a
+        // valid signature to have been issued by a now invalid key.
+        fn invalid_str(rev: bool) -> &'static str {
+            if rev {
+                " [expired]"
+            } else {
+                ""
+            }
+        }
+        // component key
         writeln!(
             err,
-            "oct-git: Good signature by {}",
-            hex::encode(verifier.as_componentkey().fingerprint())
-        )?;
-        writeln!(
-            err,
-            "oct-git: Certificate {}",
-            hex::encode(ComponentKeyPub::from(ccert.primary_key()).fingerprint())
+            "oct-git: Good signature by {}{}{}",
+            hex::encode(fp),
+            revoked_str(cert_revoked | ckey_revoked),
+            invalid_str(!(cert_revoked | ckey_revoked) && (cert_invalid | ckey_invalid)),
         )?;
 
+        // certificate
+        writeln!(
+            err,
+            "oct-git: Certificate {}{}{}",
+            hex::encode(ComponentKeyPub::from(ccert.primary_key()).fingerprint()),
+            revoked_str(cert_revoked),
+            invalid_str(!cert_revoked && cert_invalid),
+        )?;
+
+        // primary user id
         if let Some(user_id) = ccert.primary_user_id() {
             writeln!(err, "oct-git: Signer User ID \"{}\"", user_id.id.id())?;
             writeln!(
