@@ -13,8 +13,8 @@ use pgp::types::{KeyVersion, SecretKeyTrait};
 use pgp::{ArmorOptions, Deserializable, Signature, SignedSecretKey, StandaloneSignature};
 use rpgpie::key::checked::CheckedCertificate;
 
+use crate::cli;
 use crate::notify::notify_and_eprint;
-use crate::{cli, pki};
 
 /// Attempt to present the User PIN to the card, for signing
 fn verify_pin_from_backend(
@@ -103,7 +103,7 @@ fn lookup_signer_id_in_store(
     if let Some(certs) = &signer_certs {
         if certs.is_empty() {
             // try polling from KOO ...
-            let koo = pki::get_keyserver_koo(&[signer_id.to_string()]);
+            let koo = store.poll(&[signer_id.to_string()])?;
 
             // ... and store results in certd, if any
             for c in &koo {

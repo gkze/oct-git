@@ -5,7 +5,6 @@
 mod card;
 pub mod cli;
 mod notify;
-mod pki;
 mod sign;
 mod verify;
 

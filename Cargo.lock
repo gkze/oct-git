@@ -2361,7 +2361,6 @@ dependencies = [
  "openpgp-card-state",
  "openpgp-cert-d",
  "pgp",
- "reqwest",
  "rpassword",
  "rpgpie",
  "rpgpie-certificate-store",
@@ -3020,12 +3019,14 @@ version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3056fa7a4c2af337d7842246836479592f607716b1e0f2b3f3e40a4104a3f85c"
 dependencies = [
+ "chrono",
  "diesel",
  "diesel_migrations",
  "email-address-parser",
  "hex",
  "log",
  "openpgp-cert-d",
+ "reqwest",
  "rpgpie",
  "thiserror",
 ]

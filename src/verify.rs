@@ -12,8 +12,6 @@ use rpgpie::key::{
     checked::CheckedCertificate, component::ComponentKeyPub, Certificate, SignatureVerifier,
 };
 
-use crate::pki;
-
 /// List of hex encoded (lowercase) issuer fingerprints
 fn signer_fps(sc: &SignatureConfig) -> Vec<String> {
     let fingerprints = sc.issuer_fingerprint();
@@ -93,10 +91,11 @@ pub fn verify(
             .collect::<Vec<_>>();
     }
 
-    // If our store lookups didn't yield any certificate, we try to find certificates on the koo
-    // keyserver, first by fingerprint, then by key id
+    // If our store lookups didn't yield any certificate, we try to find certificates on
+    // keyservers (first by fingerprint, then by key id)
     if certs.is_empty() {
-        certs = pki::get_keyserver_koo(&fps_hex)
+        certs = store
+            .poll(&fps_hex)?
             .into_iter()
             .filter(|c| {
                 !CheckedCertificate::from(c)
@@ -105,7 +104,8 @@ pub fn verify(
             })
             .collect();
         if certs.is_empty() {
-            certs = pki::get_keyserver_koo(&key_ids_hex)
+            certs = store
+                .poll(&key_ids_hex)?
                 .into_iter()
                 .filter(|c| {
                     !CheckedCertificate::from(c)
