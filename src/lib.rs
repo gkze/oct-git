@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 mod card;
-pub mod cli;
 mod notify;
 mod sign;
 mod verify;
@@ -14,6 +13,12 @@ pub use card::set_pin;
 use rpgpie_certificate_store::Store;
 pub use sign::sign;
 pub use verify::verify;
+
+#[derive(Copy, Clone)]
+pub enum Armor {
+    NoArmor,
+    Armor,
+}
 
 pub(crate) fn open_store(
     cert_store_path: Option<&PathBuf>,

@@ -13,8 +13,8 @@ use pgp::types::{KeyVersion, SecretKeyTrait};
 use pgp::{ArmorOptions, Deserializable, Signature, SignedSecretKey, StandaloneSignature};
 use rpgpie::key::checked::CheckedCertificate;
 
-use crate::cli;
 use crate::notify::notify_and_eprint;
+use crate::Armor;
 
 /// Attempt to present the User PIN to the card, for signing
 fn verify_pin_from_backend(
@@ -171,7 +171,7 @@ pub fn sign(
     mut out: impl Write,
     mut err: impl Write,
     mut signer_id: &str,
-    armor: cli::Armor,
+    armor: Armor,
     cert_store_path: Option<&PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     log::info!("called for signer_id: {:02x?}", signer_id);
@@ -245,9 +245,9 @@ pub fn sign(
     };
 
     match armor {
-        cli::Armor::Armor => StandaloneSignature { signature }
+        Armor::Armor => StandaloneSignature { signature }
             .to_armored_writer(&mut out, ArmorOptions::default())?,
-        cli::Armor::NoArmor => pgp::packet::write_packet(&mut out, &signature)?,
+        Armor::NoArmor => pgp::packet::write_packet(&mut out, &signature)?,
     }
 
     // https://github.com/git/git/blob/11c821f2f2a31e70fb5cc449f9a29401c333aad2/gpg-interface.c#L994

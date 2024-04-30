@@ -5,8 +5,10 @@
 use std::io::{stderr, stdin, stdout};
 
 use clap::Parser;
-use openpgp_card_tool_git::cli::{Args, Mode};
 use openpgp_card_tool_git::{set_pin, sign, verify};
+
+mod cli;
+use cli::*;
 
 fn main() {
     env_logger::init();

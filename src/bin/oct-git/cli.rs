@@ -6,6 +6,7 @@ use std::convert::TryFrom;
 use std::path::PathBuf;
 
 use clap::Parser;
+use openpgp_card_tool_git::Armor;
 
 /// A model of the subset of the gpg CLI interface that we're supporting, to be called by git.
 #[derive(Parser, Debug, Default)]
@@ -43,12 +44,6 @@ pub struct Args {
     /// Store User PIN for an OpenPGP card in openpgp-card-state
     #[clap(long)]
     pub store_card_pin: bool,
-}
-
-#[derive(Copy, Clone)]
-pub enum Armor {
-    NoArmor,
-    Armor,
 }
 
 pub enum Mode {
