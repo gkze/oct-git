@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -euxo pipefail
 
 # expect algorithm parameter for OCT
 ALGO=$1

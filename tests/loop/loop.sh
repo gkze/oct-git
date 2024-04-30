@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -euxo pipefail
 
 # number of commits we'll make after the initial commit
 COUNT=99
