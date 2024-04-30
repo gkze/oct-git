@@ -9,6 +9,7 @@ version = "0.0.1"
 authors = ["Wiktor Kwapisiewicz <wiktor@metacode.biz>", "Heiko Schaefer <heiko@schaefer.name>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
+repository = "https://codeberg.org/openpgp-card/tool-git"
 
 [[bin]]
 name = "oct-git"
