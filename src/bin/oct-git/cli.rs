@@ -57,6 +57,7 @@ pub enum Mode {
         cert_store: Option<PathBuf>,
     },
     StoreCardPin,
+    None,
 }
 
 impl TryFrom<Args> for Mode {
@@ -91,7 +92,8 @@ impl TryFrom<Args> for Mode {
         } else if value.sign {
             Err("Inline signing is not supported. Use --detach-sign".into())
         } else {
-            Err("Unknown operation: only verify and detach-sign are supported.".into())
+            // no (recognized) parameters
+            Ok(Mode::None)
         }
     }
 }
