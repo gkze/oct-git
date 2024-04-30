@@ -24,7 +24,7 @@ done
 echo
 
 # count valid signatures in the project
-SIGNATURES=$(git log --show-signature | grep -c "Signing key: ")
+SIGNATURES=$(git log --show-signature | grep -c "oct-git: Good signature by " || true)
 
 if [ "$SIGNATURES" == "$((COUNT+1))" ]; then
     echo "Found the expected number of signed commits: $SIGNATURES"
