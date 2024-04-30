@@ -86,7 +86,7 @@ If a public key is not present in the local openpgp-cert-d store, it is automati
 
 `oct-git` currently doesn't display a "trust level" for signature verification. The "trust" concept in question is based on the *Web of Trust*, and requires configuration of "trust roots", as well as signature chains on which to perform "Web of Trust" evaluations.
 
-This functionality will be added in the future.
+This functionality [will be added in the future](https://codeberg.org/openpgp-card/tool-git/issues/2).
 
 Until then, `oct-git` displays signatures with the "Unverified" trust level, since we don't currently have a basis for emitting more specific information.
 
