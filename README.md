@@ -12,12 +12,14 @@ This project provides the `oct-git` "OpenPGP card tool for Git".
 
 ## Why
 
-This tool is a stand-alone, "no-moving-parts" solution, written in pure Rust, using the [rPGP](https://crates.io/crates/pgp) OpenPGP library.
+The `oct-git` tool is a stand-alone, "no-moving-parts" solution, written in pure Rust, based on the [rPGP](https://crates.io/crates/pgp) OpenPGP library and [Rust Crypto](https://github.com/RustCrypto).
 It aims for simplicity, requires no long-running processes[^pcsc], and doesn't keep a permanent connection to OpenPGP card hardware devices.
 
 [^pcsc]: On Linux, the  `pcscd` system service is required, while on Windows and Mac, a PC/SC subsystem doesn't need to be installed (it is a part of the core system and available by default).
 
-By contrast, other tools that deal with OpenPGP tend to be complex, have many moving parts (including multiple processes, some of them long-running). 
+`oct-git` works natively on Linux, Mac and Windows. It is a new standalone solution and doesn't require (or use) any part of GnuPG.
+
+By contrast, other tools that deal with OpenPGP tend to be complex, have many moving parts (including multiple processes, some of them long-running).
 
 ## Setup
 
@@ -51,6 +53,17 @@ And/or to sign every Git tag by default:
 
 ```sh
 git config --global tag.gpgsign true
+```
+
+### Overview of interactions
+
+```mermaid
+graph TB
+    Git --> OG["oct-git <br/> (commit/tag signing and verification)"]
+    OG --> CARD["OpenPGP card <br/> (produces signatures, accessed via PC/SC)"]
+    OG --> STATE["openpgp-card-state library <br/> (config and PIN storage backend access)"]
+    STATE --> PINS["PIN storage backend <br/> (makes User PINs available to applications)"]
+    OG --> NOTIFY["Desktop notifications <br/> (e.g.: touch confirmation required)"]
 ```
 
 ### User PINs: Configuring access to OpenPGP card devices
