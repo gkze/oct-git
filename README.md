@@ -55,7 +55,7 @@ And/or to sign every Git tag by default:
 git config --global tag.gpgsign true
 ```
 
-### Overview of interactions
+### Architecture and subsystems
 
 ```mermaid
 graph TB
