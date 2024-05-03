@@ -55,7 +55,11 @@ pub fn verify(
     sig_path: &PathBuf,
     cert_store_path: Option<&PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    log::trace!("verify start");
+
     let store = crate::open_store(cert_store_path)?;
+
+    log::trace!("verify open_store");
 
     // Buffer the data (we might need to verify it multiple times, against different certificates)
     let mut buffer = vec![];
@@ -66,6 +70,8 @@ pub fn verify(
     let fps_hex = signer_fps(&sig.config);
 
     let sig_creation = sig.config.created().expect("FIXME");
+
+    log::trace!("verify sig setup done");
 
     // look up certificates for the issuer(s) in the cert store
     let mut certs = fps_hex
@@ -78,6 +84,8 @@ pub fn verify(
                 .is_empty()
         })
         .collect::<Vec<_>>();
+
+    log::trace!("verify: cert store lookup by fp");
 
     let key_ids_hex = signer_key_ids(&sig.config);
     if certs.is_empty() {
@@ -94,9 +102,13 @@ pub fn verify(
             .collect::<Vec<_>>();
     }
 
+    log::trace!("verify: cert store lookup by key id");
+
     // If our store lookups didn't yield any certificate, we try to find certificates on
     // keyservers (first by fingerprint, then by key id)
     if certs.is_empty() {
+        log::trace!("verify: poll from PKI by fps");
+
         certs = store
             .poll(&fps_hex)?
             .into_iter()
@@ -106,7 +118,12 @@ pub fn verify(
                     .is_empty()
             })
             .collect();
+
+        log::debug!("got {} certificates from PKI by fingerprints", certs.len());
+
         if certs.is_empty() {
+            log::trace!("verify: poll from PKI by key id");
+
             certs = store
                 .poll(&key_ids_hex)?
                 .into_iter()
@@ -116,18 +133,27 @@ pub fn verify(
                         .is_empty()
                 })
                 .collect();
+
+            log::debug!("got {} certificates from PKI by key ids", certs.len());
         }
+
+        log::trace!("verify: pki lookups done");
 
         // ... persist any results, for next time
         for c in &certs {
             let _ = store.insert(c); // silently ignore errors
         }
+
+        log::trace!("verify: store persisted");
     }
 
     let valid_sigs = certs
         .iter()
         .flat_map(|cert| {
             let ccert: CheckedCertificate = cert.into();
+
+            log::trace!("verify: got ccert");
+
             ccert
                 .valid_signing_capable_component_keys_at(sig_creation)
                 .into_iter()
@@ -141,7 +167,11 @@ pub fn verify(
         })
         .collect::<Vec<_>>();
 
+    log::trace!("verify: validation done");
+
     print_results(sig, &certs, valid_sigs, &mut out, &mut err)?;
+
+    log::trace!("verify: print done");
 
     Ok(())
 }

@@ -29,7 +29,7 @@ https://crates.io/crates/openpgp-card-state
 For more information, see https://crates.io/crates/openpgp-card-tool-git";
 
 fn main() {
-    env_logger::init();
+    env_logger::builder().format_timestamp_micros().init();
 
     let args = Args::parse();
 
