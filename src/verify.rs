@@ -10,9 +10,7 @@ use hex::ToHex;
 use pgp::packet::SignatureConfig;
 use pgp::Signature;
 use rpgpie::key::component::{SignedComponentKey, SignedComponentKeyPub};
-use rpgpie::key::{
-    checked::CheckedCertificate, component::ComponentKeyPub, Certificate, SignatureVerifier,
-};
+use rpgpie::key::{checked::CheckedCertificate, component::ComponentKeyPub, SignatureVerifier};
 use rpgpie::sig::stack::SigStack;
 
 /// List of hex encoded (lowercase) issuer fingerprints
@@ -74,13 +72,13 @@ pub fn verify(
     log::trace!("verify sig setup done");
 
     // look up certificates for the issuer(s) in the cert store
-    let mut certs = fps_hex
+    let mut certs: Vec<CheckedCertificate> = fps_hex
         .iter()
         .flat_map(|fpr| store.search_by_fingerprint(fpr).ok())
         .flatten()
+        .map(|c| CheckedCertificate::from(&c))
         .filter(|c| {
-            !CheckedCertificate::from(c)
-                .valid_signing_capable_component_keys_at(sig_creation)
+            !c.valid_signing_capable_component_keys_at(sig_creation)
                 .is_empty()
         })
         .collect::<Vec<_>>();
@@ -94,9 +92,9 @@ pub fn verify(
             .iter()
             .flat_map(|key_id| store.search_by_key_id(key_id).ok())
             .flatten()
+            .map(|c| CheckedCertificate::from(&c))
             .filter(|c| {
-                !CheckedCertificate::from(c)
-                    .valid_signing_capable_component_keys_at(sig_creation)
+                !c.valid_signing_capable_component_keys_at(sig_creation)
                     .is_empty()
             })
             .collect::<Vec<_>>();
@@ -112,11 +110,7 @@ pub fn verify(
         certs = store
             .poll(&fps_hex)?
             .into_iter()
-            .filter(|c| {
-                !CheckedCertificate::from(c)
-                    .valid_signing_capable_component_keys_at(sig_creation)
-                    .is_empty()
-            })
+            .map(|c| CheckedCertificate::from(&c))
             .collect();
 
         log::debug!("got {} certificates from PKI by fingerprints", certs.len());
@@ -127,11 +121,7 @@ pub fn verify(
             certs = store
                 .poll(&key_ids_hex)?
                 .into_iter()
-                .filter(|c| {
-                    !CheckedCertificate::from(c)
-                        .valid_signing_capable_component_keys_at(sig_creation)
-                        .is_empty()
-                })
+                .map(|c| CheckedCertificate::from(&c))
                 .collect();
 
             log::debug!("got {} certificates from PKI by key ids", certs.len());
@@ -141,7 +131,7 @@ pub fn verify(
 
         // ... persist any results, for next time
         for c in &certs {
-            let _ = store.insert(c); // silently ignore errors
+            let _ = store.insert(&c.clone().into()); // silently ignore errors
         }
 
         log::trace!("verify: store persisted");
@@ -149,9 +139,7 @@ pub fn verify(
 
     let valid_sigs = certs
         .iter()
-        .flat_map(|cert| {
-            let ccert: CheckedCertificate = cert.into();
-
+        .flat_map(|ccert| {
             log::trace!("verify: got ccert");
 
             ccert
@@ -181,7 +169,7 @@ pub fn verify(
 /// Note: Some of the output is intended for automated processing.
 fn print_results(
     sig: &Signature,
-    certs: &[Certificate],
+    ccerts: &[CheckedCertificate],
     valid_sigs: Vec<(CheckedCertificate, SignatureVerifier)>,
     mut out: impl Write,
     mut err: impl Write,
@@ -205,7 +193,7 @@ fn print_results(
         yolo_signer_id(&sig.config)
     )?;
 
-    if certs.is_empty() {
+    if ccerts.is_empty() {
         writeln!(
             err,
             "oct-git: Can't check signature: Certificate not available."
