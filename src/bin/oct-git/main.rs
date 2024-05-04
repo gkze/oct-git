@@ -10,7 +10,19 @@ use openpgp_card_tool_git::{set_pin, sign, verify};
 mod cli;
 use cli::*;
 
-const INTRO: &str = "Welcome to oct-git, a modern Rust-based Git signing tool for OpenPGP cards! 🎉
+fn help_text() -> String {
+    const OCT_GIT_FALLBACK_NAME: &str = "<path to oct-git>";
+
+    let oct_git_name = match std::env::current_exe() {
+        Ok(exe_path) => exe_path
+            .to_str()
+            .unwrap_or(OCT_GIT_FALLBACK_NAME)
+            .to_string(),
+        Err(_e) => OCT_GIT_FALLBACK_NAME.to_string(),
+    };
+
+    format!(
+        "Welcome to oct-git, a modern Rust-based Git signing tool for OpenPGP cards! 🎉
 
 To get started:
 
@@ -23,13 +35,17 @@ https://crates.io/crates/openpgp-card-state
 
 2) Configure Git to use oct-git for signing:
 
-  $ git config --global gpg.program <path to oct-git>
+  $ git config --global gpg.program {}
   $ git config --global user.signingkey <fingerprint>
 
-For more information, see https://crates.io/crates/openpgp-card-tool-git";
+For more information, see https://crates.io/crates/openpgp-card-tool-git",
+        oct_git_name
+    )
+}
 
 fn main() {
     env_logger::builder().format_timestamp_micros().init();
+    let help_text = help_text();
 
     let args = Args::parse();
 
@@ -46,7 +62,7 @@ fn main() {
         Ok(Mode::StoreCardPin) => set_pin(),
         Ok(Mode::None) => {
             // Show a brief introduction
-            eprintln!("{INTRO}");
+            eprintln!("{help_text}");
             Ok(())
         }
         Err(e) => {
