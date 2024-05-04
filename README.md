@@ -26,6 +26,8 @@ By contrast, other tools that deal with OpenPGP tend to be complex, have many mo
 `oct-git` is designed specifically for use with the Git version control system, as a helper to perform OpenPGP signing and verification.
 Users will typically not interact directly with `oct-git`, after an initial one-time setup.
 
+If you call `oct-git` without parameters, you'll see a very brief setup help text.
+
 ### Configuring Git to use oct-git
 
 To use `oct-git`, Git must be configured appropriately.
@@ -55,7 +57,30 @@ And/or to sign every Git tag by default:
 git config --global tag.gpgsign true
 ```
 
+### Switching Git's OpenPGP subsystem between oct-git and GnuPG
+
+If you'd like to try `oct-git`, but are undecided between using it or GnuPG, once you have set up Git's OpenPGP configuration, you can always easily switch between OpenPGP Git subsystems:
+
+You can simply call:
+
+```sh
+git config --global gpg.program <path to GnuPG>
+```
+
+or
+
+```sh
+git config --global gpg.program <path to oct-git>
+```
+
+Switching between the two alternative OpenPGP subsystems should be quick and a mostly unexciting experience.
+We encourage unhesitant switching between the implementations if you want to compare them, or just play.
+
 ### Architecture and subsystems
+
+The `oct-git` tool consists of one standalone binary, which is called by `git`, both for the creation of signatures and for the verification of signatures.
+
+Logically, `oct-git` consists of a set of subsystems:
 
 ```mermaid
 graph TB
@@ -64,7 +89,18 @@ graph TB
     OG --> STATE["openpgp-card-state library <br/> (config and PIN storage backend access)"]
     STATE --> PINS["PIN storage backend <br/> (makes User PINs available to applications)"]
     OG --> NOTIFY["Desktop notifications <br/> (e.g.: touch confirmation required)"]
+    OG --> RCS["rpgpie-certificate-store"]
+    RCS --> CERTD["openpgp-cert-d <br/> (shared public key storage)"]
+    RCS --> PKI["OpenPGP PKI <br/> (retrieve certificates from keyservers etc)"]
 ```
+
+Most of these subsystems consist of Rust libraries that are linked into the `oct-git` program.
+
+The following subsystems are not libraries:
+
+- "OpenPGP card" is a physical hardware security device (often a USB device) that contains your private signing key material, to issue Git signatures with.
+- An ["openpgp-cert-d"](https://crates.io/crates/openpgp-cert-d) instance consists of a set of files in a shared location in your local filesystem that contains OpenPGP certificates (public keys).
+- "OpenPGP PKI" means public keyservers that serve OpenPGP certificates (public keys). This subsystem queries keyservers over the internet, to acquire copies of certificates.
 
 ### User PINs: Configuring access to OpenPGP card devices
 
@@ -87,15 +123,24 @@ The User PIN storage process in `oct-git` is interactive. For each connected Ope
 
 ## Signing
 
-Signing requires that the User PIN for any OpenPGP card device has been configured via [openpgp-card-state](https://crates.io/crates/openpgp-card-state) (also see above).
+`oct-git` can be used by Git to sign commits or tags.
+
+Signing with `oct-git` requires that an OpenPGP card with the data signing key material is plugged into your system.
+Additionally, the User PIN for any OpenPGP card device must be accessible via [openpgp-card-state](https://crates.io/crates/openpgp-card-state) (see above).
 
 ## Verification
 
-Verification of signatures automatically uses public keys from the local [openpgp-cert-d](https://crates.io/crates/openpgp-cert-d) "shared OpenPGP Certificate Directory".
+Verification of signatures automatically uses OpenPGP certificates from the local [openpgp-cert-d](https://crates.io/crates/openpgp-cert-d) "shared OpenPGP Certificate Directory".
 
-If a public key is not present in the local openpgp-cert-d store, it is automatically downloaded from [keys.openpgp.org](https://keys.openpgp.org/) (the query does a lookup by signing key fingerprint).
+If a certificate is not present in the local openpgp-cert-d store, `oct-git` attempts to automatically download it [^lookup] from a number of well-known public online directories (currently,`oct-git` queries [keyserver.ubuntu.com](https://keyserver.ubuntu.com/) and [keys.openpgp.org](https://keys.openpgp.org/)).
 
-### Limitation: verification "trust level"
+[^lookup]: PKI queries to acquire certificates perform a lookup by signing key fingerprint or key id.
+
+### Limitation: Updating certificates in the store
+
+`oct-git` currently isn't able to update certificates in the openpgp-cert-d store. There is a [tracking issue](https://codeberg.org/heiko/rpgpie-certificate-store/issues/3) for this feature.
+
+### Limitation: Verification "trust level"
 
 `oct-git` currently doesn't display a "trust level" for signature verification. The "trust" concept in question is based on the *Web of Trust*, and requires configuration of "trust roots", as well as signature chains on which to perform "Web of Trust" evaluations.
 
@@ -106,6 +151,14 @@ Until then, `oct-git` displays signatures with the "Unverified" trust level, sin
 This output means that the signature is cryptographically correct, and the fingerprint of the issuer is shown. However, no chain of trust to the signer is known.
 
 ## Internals
+
+Technically, `oct-git` implements a lookalike for a very small subset of GnuPG's CLI interface.
+
+Specifically, we implement just enough functionality so that Git is able to do signing and verification operations using `oct-git` instead of `gpg`.
+
+Having a separate binary for use with Git enables `oct-git` to be a lot more specific in its user interactions. For example, when touch confirmation is required, `oct-git` will show a notification that informs the user that a touch input on a card is required, and shows that the request originates from `oct-git`.
+
+The two following sections show how `oct-git` is called internally - usually such calls to `oct-git` are issued by the `git` program.
 
 ### Basic detached signing
 
@@ -122,6 +175,15 @@ The fingerprint may be retrieved using `oct status` command.
 ```sh
 oct-git --verify Cargo.toml.sig - < Cargo.toml
 ```
+
+## Future directions
+
+The coupling of Git with the OpenPGP signing and verification subsystem is currently based on GnuPG's CLI interface.
+
+This is not ideal, and it limits the design space for alternative OpenPGP subsystems for Git, such as `oct-git`.
+In the longer term, it would be great if Git supported a more simple, generic and well-defined interface between itself and signing/verification subsystems.
+
+This goal is currently out of scope for this project, but we'd love to hear from you, if you are working on it!
 
 # Funding
 
