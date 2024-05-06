@@ -13,7 +13,7 @@ use cli::*;
 fn help_text() -> String {
     const OCT_GIT_FALLBACK_NAME: &str = "<path to oct-git>";
 
-    let oct_git_name = match std::env::current_exe() {
+    let oct_git_path = match std::env::current_exe() {
         Ok(exe_path) => exe_path
             .to_str()
             .unwrap_or(OCT_GIT_FALLBACK_NAME)
@@ -38,8 +38,17 @@ https://crates.io/crates/openpgp-card-state
   $ git config --global gpg.program {}
   $ git config --global user.signingkey <fingerprint>
 
+One way to find out your signing key fingerprint is to query your
+OpenPGP card, with:
+
+  $ oct status
+
+(Note that the fingerprint must be provided to git without spaces. Also,
+please double-check that the signing key on your card is valid for data
+signatures, not just for certifications)
+
 For more information, see https://crates.io/crates/openpgp-card-tool-git",
-        oct_git_name
+        oct_git_path
     )
 }
 
