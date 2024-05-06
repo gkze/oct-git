@@ -1,7 +1,7 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: openpgp-card-tool-git
 Upstream-Contact: Heiko Schaefer <heiko@schaefer.name>
-Source: https://codeberg.org/openpgp-card/tool-git/
+Source: https://codeberg.org/openpgp-card/oct-git/
 
 Files: tests/*
 Copyright: Wiktor Kwapisiewicz <wiktor@metacode.biz>
