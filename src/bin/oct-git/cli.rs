@@ -76,6 +76,13 @@ pub struct Args {
     /// https://crates.io/crates/openpgp-card-state for more details.
     #[clap(long)]
     pub store_card_pin: bool,
+
+    /// Import an OpenPGP certificate (public key) from a file.
+    ///
+    /// This adds the certificate to the default "Shared OpenPGP Certificate
+    /// Directory" (openpgp-cert-d) on your system.
+    #[clap(long, value_names = ["CERTIFICATE_FILE"])]
+    pub import: Option<PathBuf>,
 }
 
 pub enum Mode {
@@ -89,6 +96,10 @@ pub enum Mode {
         cert_store: Option<PathBuf>,
     },
     StoreCardPin,
+    Import {
+        cert_file: PathBuf,
+        cert_store: Option<PathBuf>,
+    },
     None,
 }
 
@@ -98,6 +109,11 @@ impl TryFrom<Args> for Mode {
     fn try_from(value: Args) -> Result<Self, Self::Error> {
         if value.store_card_pin {
             Ok(Mode::StoreCardPin)
+        } else if let Some(cert) = value.import {
+            Ok(Mode::Import {
+                cert_file: cert,
+                cert_store: value.cert_store,
+            })
         } else if let Some(signature) = value.verify {
             if Some("-".into()) == value.file_to_verify {
                 Ok(Mode::Verify {

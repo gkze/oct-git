@@ -5,7 +5,7 @@
 use std::io::{stderr, stdin, stdout};
 
 use clap::Parser;
-use openpgp_card_tool_git::{set_pin, sign, verify};
+use openpgp_card_tool_git::{import_cert, set_pin, sign, verify};
 
 mod cli;
 use cli::*;
@@ -60,6 +60,10 @@ fn main() {
             cert_store,
         }) => sign(stdin(), stdout(), stderr(), &id, armor, cert_store.as_ref()),
         Ok(Mode::StoreCardPin) => set_pin(),
+        Ok(Mode::Import {
+            cert_file,
+            cert_store,
+        }) => import_cert(&cert_file, cert_store.as_ref()),
         Ok(Mode::None) => {
             // Show a brief introduction
             eprintln!("{help_text}");

@@ -136,6 +136,16 @@ If a certificate is not present in the local openpgp-cert-d store, `oct-git` att
 
 [^lookup]: PKI queries to acquire certificates perform a lookup by signing key fingerprint or key id.
 
+### Manually importing certificates to the store
+
+You can manually import certificates into the "shared OpenPGP Certificate Directory" using `oct-git`:
+
+```
+$ oct-git --import <certificate file>
+```
+
+This can be useful if you want to verify commits by a certificate that `oct-git` can't obtain from the public OpenPGP PKI.
+
 ### Limitation: Updating certificates in the store
 
 `oct-git` currently isn't able to update certificates in the openpgp-cert-d store. There is a [tracking issue](https://codeberg.org/heiko/rpgpie-certificate-store/issues/3) for this feature.
