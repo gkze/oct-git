@@ -8,40 +8,72 @@ use std::path::PathBuf;
 use clap::Parser;
 use openpgp_card_tool_git::Armor;
 
-/// A model of the subset of the gpg CLI interface that we're supporting, to be called by git.
+/// A model of the subset of the gpg CLI interface that we're supporting.
+/// This CLI is mainly intended to be called by Git.
+///
+/// However, some functionality is end user-facing, to help users set up oct-git.
+/// In particular "store_card_pin" and "import".
 #[derive(Parser, Debug, Default)]
 pub struct Args {
-    #[clap(long)]
+    /// Verify a detached signature.
+    ///
+    /// The signed data must be provided via STDIN.
+    ///
+    /// Verification uses the local "Shared OpenPGP Certificate Directory"
+    /// (openpgp-cert-d) to obtain signer certificates. If a signer certificate
+    /// can't be found in the local openpgp-cert-d, oct-git attempts to obtain
+    /// the certificate from OpenPGP PKI (such as keyservers).
+    #[clap(long, value_names = ["SIGNATURE_FILE"])]
     pub verify: Option<PathBuf>,
 
+    /// Create a detached signature.
     #[clap(long, short = 'b')]
     pub detach_sign: bool,
 
-    #[clap(long, short = 's')]
+    /// This parameter only exists to redirect users to use `detach_sign` instead.
+    #[clap(long, short = 's', hide = true)]
     pub sign: bool,
 
+    /// Specifies if generated signatures should be ASCII armored.
     #[clap(long, short = 'a')]
     pub armor: bool,
 
-    #[clap(long, short = 'u')]
+    /// Identifies the signing key that should be used.
+    ///
+    /// Accepts signing subkey fingerprints, certificate fingerprints (or key IDs,
+    /// as a fallback).
+    #[clap(long, short = 'u', value_names = ["SIGNING_KEY_FINGERPRINT"])]
     pub user_id: Option<String>,
 
-    #[clap(long)]
+    /// Git passes this parameter, so we need to accept it.
+    /// oct-git ignores this input and acts hardcoded to "long".
+    ///
+    /// Also see: https://github.com/git/git/blob/master/gpg-interface.c#L49
+    #[clap(long, hide = true)]
     pub keyid_format: Option<String>,
 
-    #[clap(long)]
+    /// Git passes this parameter, so we need to accept it.
+    /// oct-git ignores this input and acts hardcoded to "1".
+    ///
+    /// Also see: https://github.com/git/git/blob/master/gpg-interface.c#L360
+    #[clap(long, hide = true)]
     pub status_fd: Option<String>,
 
     pub file_to_verify: Option<String>,
 
     /// Path to cert-d storage (used for signature verification).
-    /// If None, use the user's default (shared) PGP certificate directory.
+    ///
+    /// If None, use the user's default "Shared OpenPGP Certificate
+    /// Directory" (openpgp-cert-d).
     ///
     /// Also see <https://datatracker.ietf.org/doc/draft-nwjw-openpgp-cert-d/>
-    #[clap(short, long, env = "PGP_CERT_D")]
+    #[clap(short, long, env = "PGP_CERT_D", value_names = ["STORE_PATH"])]
     pub cert_store: Option<PathBuf>,
 
-    /// Store User PIN for an OpenPGP card in openpgp-card-state
+    /// Store the User PIN for OpenPGP card(s) on your system.
+    ///
+    /// The PIN is stored via the openpgp-card-state subsystem, see
+    /// https://crates.io/crates/openpgp-card-state for more details.
     #[clap(long)]
     pub store_card_pin: bool,
 }
