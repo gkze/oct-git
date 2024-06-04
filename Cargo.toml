@@ -29,6 +29,9 @@ rpassword = "7"
 rpgpie = "0.0.9"
 rpgpie-certificate-store = "0.0.6"
 
+[target.'cfg(windows)'.dependencies]
+libsqlite3-sys = { version = "*", features = ["bundled"] }
+
 [dev-dependencies]
 openpgp-cert-d = "0.3"
 rstest = "0.19"
