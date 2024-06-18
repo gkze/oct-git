@@ -21,13 +21,13 @@ env_logger = "0.11"
 hex = "0.4"
 log = "0.4"
 notify-rust = { version = "4", optional = true }
-openpgp-card = "0.5.0-alpha.1"
-openpgp-card-rpgp = "0.0.3"
+openpgp-card = "0.5"
+openpgp-card-rpgp = "0.1"
 openpgp-card-state = "0.2"
-pgp = "0.12.0-alpha.2"
+pgp = "0.13"
 rpassword = "7"
-rpgpie = "0.0.9"
-rpgpie-certificate-store = "0.0.6"
+rpgpie = "0.1"
+rpgpie-certificate-store = "0.1"
 
 [target.'cfg(windows)'.dependencies]
 libsqlite3-sys = { version = "*", features = ["bundled"] }

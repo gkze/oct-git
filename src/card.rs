@@ -17,7 +17,11 @@ pub fn set_pin() -> Result<(), Box<dyn std::error::Error>> {
         println!("Found OpenPGP card {}", ident);
 
         if let Ok(Some(pin)) = openpgp_card_state::get_pin(&ident) {
-            if tx.card().verify_pw1_sign(pin.as_bytes()).is_err() {
+            if tx
+                .card()
+                .verify_pw1_sign(pin.as_bytes().to_vec().into())
+                .is_err()
+            {
                 // Drop the PIN from the state backend to avoid exhausting the retry counter
                 // (and locking up the User PIN).
                 openpgp_card_state::drop_pin(&ident)?;
@@ -53,7 +57,7 @@ fn get_and_store_pin(
     // Only continue processing this card if the user entered a non-empty value
     if !pin.is_empty() {
         // Present the PIN to the card
-        tx.card().verify_pw1_sign(pin.as_bytes())?;
+        tx.card().verify_pw1_sign(pin.as_bytes().to_vec().into())?;
 
         // The card liked this User PIN, persist it via openpgp_card_state
         openpgp_card_state::set_pin(ident, &pin, None)?;
