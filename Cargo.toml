@@ -30,7 +30,7 @@ rpgpie = "0.1"
 rpgpie-certificate-store = "0.1"
 
 [target.'cfg(windows)'.dependencies]
-libsqlite3-sys = { version = "*", features = ["bundled"] }
+libsqlite3-sys = { version = "0.28", features = ["bundled"] }
 
 [dev-dependencies]
 openpgp-cert-d = "0.3"
