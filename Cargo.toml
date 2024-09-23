@@ -23,7 +23,7 @@ log = "0.4"
 notify-rust = { version = "4", optional = true }
 openpgp-card = "0.5"
 openpgp-card-rpgp = "0.1"
-openpgp-card-state = "0.2"
+openpgp-card-state = "0.3"
 pgp = "0.13"
 rpassword = "7"
 rpgpie = "0.1"
