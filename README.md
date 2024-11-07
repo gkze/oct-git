@@ -186,6 +186,17 @@ The fingerprint may be retrieved using `oct status` command.
 oct-git --verify Cargo.toml.sig - < Cargo.toml
 ```
 
+## Development
+
+Use the scripts in `utils` to test Git commands with a development build of `oct-git` without changing your configuration.
+`./utils/oct-git.sh` compiles `oct-git` from source and executes it.
+`./utils/git.sh` uses environment variables to configure Git and can be used to run Git commands using `./utils/oct-git.sh` as `gpg.program`.
+For example:
+
+```sh
+./utils/git.sh verify-commit HEAD
+```
+
 ## Future directions
 
 The coupling of Git with the OpenPGP signing and verification subsystem is currently based on GnuPG's CLI interface.
