@@ -8,10 +8,10 @@ use std::path::PathBuf;
 use card_backend_pcsc::PcscBackend;
 use openpgp_card::ocard::KeyType;
 use openpgp_card_rpgp::CardSlot;
-use pgp::packet::{SignatureConfig, SignatureType, SignatureVersion, Subpacket, SubpacketData};
-use pgp::types::{KeyVersion, SecretKeyTrait};
+use pgp::packet::{SignatureConfig, SignatureType, Subpacket, SubpacketData};
+use pgp::types::SecretKeyTrait;
 use pgp::{ArmorOptions, Deserializable, Signature, SignedSecretKey, StandaloneSignature};
-use rpgpie::key::checked::CheckedCertificate;
+use rpgpie::certificate::Checked;
 
 use crate::notify::notify_and_eprint;
 use crate::Armor;
@@ -137,12 +137,12 @@ fn lookup_signer_id_in_store(
     let signer_ids = match signer_cert {
         None => vec![hex::decode(signer_id)?],
         Some(c) => {
-            let ccert = CheckedCertificate::from(&c);
+            let ccert = Checked::from(&c);
 
             let signer_fps: Vec<_> = ccert
                 .valid_signing_capable_component_keys_at(&std::time::SystemTime::now().into())
                 .iter()
-                .map(|sv| sv.as_componentkey().fingerprint())
+                .map(|sv| sv.as_componentkey().fingerprint().as_bytes().to_vec())
                 .collect();
 
             if !signer_fps.is_empty() {
@@ -265,28 +265,26 @@ fn calculate_signature(
     signer: impl SecretKeyTrait,
     data: impl Read,
 ) -> Result<Signature, Box<dyn std::error::Error>> {
-    let sig_config = SignatureConfig::new_v4(
-        SignatureVersion::V4,
-        SignatureType::Binary,
-        signer.algorithm(),
-        signer.hash_alg(),
-        vec![
-            Subpacket::regular(SubpacketData::SignatureCreationTime(
-                std::time::SystemTime::now().into(),
-            )),
-            Subpacket::regular(SubpacketData::Issuer(signer.key_id())),
-            Subpacket::regular(SubpacketData::IssuerFingerprint(
-                KeyVersion::V4,
-                signer.fingerprint().into(),
-            )),
-        ],
-        vec![],
-    );
+    let mut sig_config =
+        SignatureConfig::v4(SignatureType::Binary, signer.algorithm(), signer.hash_alg());
+
+    sig_config.hashed_subpackets = vec![
+        Subpacket::regular(SubpacketData::SignatureCreationTime(
+            std::time::SystemTime::now().into(),
+        )),
+        Subpacket::regular(SubpacketData::Issuer(signer.key_id())),
+        Subpacket::regular(SubpacketData::IssuerFingerprint(signer.fingerprint())),
+    ];
 
     let mut hasher = sig_config.hash_alg.new_hasher()?;
 
     sig_config.hash_data_to_sign(&mut *hasher, data)?;
-    let len = sig_config.hash_signature_data(&mut *hasher)?;
+
+    let mut sig_cfg = vec![];
+    let len = sig_config.hash_signature_data(&mut sig_cfg)?;
+
+    hasher.update(&sig_cfg);
+
     hasher.update(&sig_config.trailer(len)?);
 
     let hash = &hasher.finish()[..];

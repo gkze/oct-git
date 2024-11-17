@@ -10,7 +10,7 @@ mod verify;
 use std::path::PathBuf;
 
 pub use card::set_pin;
-use rpgpie::key::Certificate;
+use rpgpie::certificate::Certificate;
 use rpgpie_certificate_store::Store;
 pub use sign::sign;
 pub use verify::verify;

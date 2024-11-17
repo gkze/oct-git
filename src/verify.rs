@@ -9,14 +9,17 @@ use std::time::SystemTime;
 use hex::ToHex;
 use pgp::packet::SignatureConfig;
 use pgp::Signature;
-use rpgpie::key::component::{SignedComponentKey, SignedComponentKeyPub};
-use rpgpie::key::{checked::CheckedCertificate, component::ComponentKeyPub, SignatureVerifier};
-use rpgpie::sig::stack::SigStack;
+use rpgpie::certificate::{Checked, SignatureVerifier};
+use rpgpie::ComponentKeyPub;
 
 /// List of hex encoded (lowercase) issuer fingerprints
 fn signer_fps(sc: &SignatureConfig) -> Vec<String> {
     let fingerprints = sc.issuer_fingerprint();
-    fingerprints.iter().map(hex::encode).collect()
+    fingerprints
+        .iter()
+        .map(|fp| fp.as_bytes())
+        .map(hex::encode)
+        .collect()
 }
 
 /// List of hex encoded (lowercase) issuer key ids
@@ -63,7 +66,7 @@ pub fn verify(
     let mut buffer = vec![];
     std::io::copy(&mut data, &mut buffer)?;
 
-    let sig = &rpgpie::sig::load(&mut std::fs::File::open(sig_path)?)?[0];
+    let sig = &rpgpie::signature::load(&mut std::fs::File::open(sig_path)?)?[0];
 
     let fps_hex = signer_fps(&sig.config);
 
@@ -72,11 +75,11 @@ pub fn verify(
     log::trace!("verify sig setup done");
 
     // look up certificates for the issuer(s) in the cert store
-    let mut certs: Vec<CheckedCertificate> = fps_hex
+    let mut certs: Vec<Checked> = fps_hex
         .iter()
         .flat_map(|fpr| store.search_by_fingerprint(fpr).ok())
         .flatten()
-        .map(|c| CheckedCertificate::from(&c))
+        .map(|c| Checked::from(&c))
         .filter(|c| {
             !c.valid_signing_capable_component_keys_at(sig_creation)
                 .is_empty()
@@ -92,7 +95,7 @@ pub fn verify(
             .iter()
             .flat_map(|key_id| store.search_by_key_id(key_id).ok())
             .flatten()
-            .map(|c| CheckedCertificate::from(&c))
+            .map(|c| Checked::from(&c))
             .filter(|c| {
                 !c.valid_signing_capable_component_keys_at(sig_creation)
                     .is_empty()
@@ -110,7 +113,7 @@ pub fn verify(
         certs = store
             .poll(&fps_hex)?
             .into_iter()
-            .map(|c| CheckedCertificate::from(&c))
+            .map(|c| Checked::from(&c))
             .collect();
 
         log::debug!("got {} certificates from PKI by fingerprints", certs.len());
@@ -121,7 +124,7 @@ pub fn verify(
             certs = store
                 .poll(&key_ids_hex)?
                 .into_iter()
-                .map(|c| CheckedCertificate::from(&c))
+                .map(|c| Checked::from(&c))
                 .collect();
 
             log::debug!("got {} certificates from PKI by key ids", certs.len());
@@ -169,8 +172,8 @@ pub fn verify(
 /// Note: Some of the output is intended for automated processing.
 fn print_results(
     sig: &Signature,
-    ccerts: &[CheckedCertificate],
-    valid_sigs: Vec<(CheckedCertificate, SignatureVerifier)>,
+    ccerts: &[Checked],
+    valid_sigs: Vec<(Checked, SignatureVerifier)>,
     mut out: impl Write,
     mut err: impl Write,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -203,36 +206,34 @@ fn print_results(
     }
 
     for (ccert, verifier) in &valid_sigs {
-        let fp = verifier.as_componentkey().fingerprint();
+        let verifier_fp = verifier.as_componentkey().fingerprint();
 
         let now = SystemTime::now().into();
 
-        let cert_revoked = SignedComponentKey::Pub(ccert.primary_key().clone()).revoked(&now);
+        // Is the cert/primary revoked now?
+        let cert_revoked = ccert.revoked_at(&now);
 
-        // Is the primary invalid in any way?
+        // Is the cert/primary invalid in any way now?
         let cert_invalid = !ccert.primary_valid_at(&now)?;
 
-        let sk: Vec<_> = std::iter::once(ccert.primary_key())
-            .chain(ccert.subkeys())
-            .filter(|sk| ComponentKeyPub::from(sk.clone()).fingerprint() == fp)
-            .collect();
+        let (ckey_revoked, ckey_invalid) = if ccert.fingerprint() == verifier_fp {
+            // verifier was the primary
+            (cert_revoked, cert_invalid)
+        } else {
+            // verifier was a subkey
+            let sk: Vec<_> = ccert
+                .subkeys()
+                .filter(|sk| ComponentKeyPub::from(sk.clone()).fingerprint() == verifier_fp)
+                .collect();
 
-        assert_eq!(sk.len(), 1); // FIXME
-        let sckp = &sk[0];
-        let sck = SignedComponentKey::Pub(sckp.clone());
+            assert_eq!(sk.len(), 1); // FIXME
+            let sckp = &sk[0];
 
-        let ckey_revoked = sck.revoked(&now);
-        let ckey_invalid = match sckp {
-            SignedComponentKeyPub::Primary(_) => cert_invalid,
-            SignedComponentKeyPub::Subkey((spsk, _)) => {
-                // FIXME: rpgpie needs a more convenient API for this
-                let stack = SigStack::from_iter(spsk.signatures.iter());
+            let ckey_revoked = sckp.revoked(&now);
+            let ckey_invalid = !sckp.is_valid_at(&now);
 
-                !stack.has_valid_binding_at(&now, spsk.key.created_at())
-            }
+            (ckey_revoked, ckey_invalid)
         };
-
-        // FIXME: ckey otherwise invalid?
 
         fn revoked_str(rev: bool) -> &'static str {
             if rev {
@@ -255,7 +256,7 @@ fn print_results(
         writeln!(
             err,
             "oct-git: Good signature by {}{}{}",
-            hex::encode(fp),
+            hex::encode(verifier_fp.as_bytes()),
             revoked_str(cert_revoked | ckey_revoked),
             invalid_str(!(cert_revoked | ckey_revoked) && (cert_invalid | ckey_invalid)),
         )?;
@@ -264,7 +265,7 @@ fn print_results(
         writeln!(
             err,
             "oct-git: Certificate {}{}{}",
-            hex::encode(ComponentKeyPub::from(ccert.primary_key()).fingerprint()),
+            hex::encode(ccert.fingerprint().as_bytes()),
             revoked_str(cert_revoked),
             invalid_str(!cert_revoked && cert_invalid),
         )?;
@@ -293,6 +294,7 @@ fn print_results(
             verifier
                 .as_componentkey()
                 .fingerprint()
+                .as_bytes()
                 .encode_hex_upper::<String>()
         )?;
     }
