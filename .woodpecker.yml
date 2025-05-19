@@ -18,6 +18,12 @@ steps:
       - apt update -y -qq && apt install -y -qq --no-install-recommends libpcsclite-dev libdbus-1-dev
       - cargo clippy --no-deps --tests --examples
 
+  test:
+    image: rust:1.79
+    commands:
+      - apt update -y -qq && apt install -y -qq --no-install-recommends libpcsclite-dev libdbus-1-dev
+      - cargo test
+
   virtual-loop-cv25519:
     image: registry.gitlab.com/openpgp-card/virtual-cards/opcard-rs-tools
     pull: true
