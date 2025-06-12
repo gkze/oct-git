@@ -186,6 +186,16 @@ The fingerprint may be retrieved using `oct status` command.
 oct-git --verify Cargo.toml.sig - < Cargo.toml
 ```
 
+## Software keys
+
+Although `oct-git` is designed to work with OpenPGP Card devices it's also possible to use software keys (TSKs) by configuring the signing key with a special `file::` prefix, like so:
+
+```sh
+git config --global user.signingkey file::/home/user/path-to-key.pgp
+```
+
+Note that this feature is mostly intended for testing and because of that only keys that are not password locked/protected are supported.
+
 ## Development
 
 Use the scripts in `utils` to test Git commands with a development build of `oct-git` without changing your configuration.
