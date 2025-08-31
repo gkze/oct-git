@@ -10,7 +10,7 @@ IDENT=0000:00000000
 ##  set up a card, configure git to use oct-git, add signer's cert to cert-d
 ## --------------------------------------------------------------------------
 
-OCT=opgpcard
+OCT=oct
 
 # build project
 cargo build --release
@@ -18,7 +18,7 @@ OCT_GIT=$(pwd)/target/release/oct-git
 
 # initialize card
 $OCT admin -c "$IDENT" -P /dev/fd/3 generate -u "<alice@example.org>" -p /dev/fd/4 --output alice.cert "$ALGO" 3<<<12345678 4<<<123456
-FP=$(opgpcard status | grep -A 1 "Signature key" | grep Fingerprint | sed "s/  Fingerprint: //" | sed s/\ //g)
+FP=$($OCT status | grep -A 1 "Signature key" | grep Fingerprint | sed "s/  Fingerprint: //" | sed s/\ //g)
 
 $OCT status
 

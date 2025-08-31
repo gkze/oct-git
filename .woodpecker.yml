@@ -24,7 +24,7 @@ steps:
       - apt update -y -qq && apt install -y -qq --no-install-recommends libpcsclite-dev libdbus-1-dev
       - cargo test
 
-  virtual-loop-cv25519:
+  virtual-loop-curve25519:
     image: registry.gitlab.com/openpgp-card/virtual-cards/opcard-rs-tools
     pull: true
 #    depends_on: [ clippy ]
@@ -32,7 +32,7 @@ steps:
       - apt update -y -qq && apt install -y -qq --no-install-recommends libdbus-1-dev
       - sh /start.sh # Start pcscd, virtual OpenPGP card
       - cargo --version
-      - tests/loop/run.sh cv25519
+      - tests/loop/run.sh curve25519
 
   virtual-loop-rsa2048:
     image: registry.gitlab.com/openpgp-card/virtual-cards/opcard-rs-tools
