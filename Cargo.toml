@@ -22,12 +22,12 @@ hex = "0.4"
 log = "0.4"
 notify-rust = { version = "4", optional = true }
 openpgp-card = "0.5"
-openpgp-card-rpgp = "0.2"
+openpgp-card-rpgp = "0.4"
 openpgp-card-state = "0.3"
-pgp = "0.14"
+pgp = "0.16"
 rpassword = "7"
-rpgpie = "0.4"
-rpgpie-certificate-store = "0.2"
+rpgpie = "0.6.6"
+rpgpie-certificate-store = "0.3.1"
 
 [target.'cfg(windows)'.dependencies]
 libsqlite3-sys = { version = "0.28", features = ["bundled"] }

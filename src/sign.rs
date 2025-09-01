@@ -8,9 +8,10 @@ use std::path::PathBuf;
 use card_backend_pcsc::PcscBackend;
 use openpgp_card::ocard::KeyType;
 use openpgp_card_rpgp::CardSlot;
-use pgp::packet::{SignatureConfig, SignatureType, Subpacket, SubpacketData};
-use pgp::types::SecretKeyTrait;
-use pgp::{ArmorOptions, Deserializable, Signature, SignedSecretKey, StandaloneSignature};
+use pgp::composed::{ArmorOptions, Deserializable, SignedSecretKey, StandaloneSignature};
+use pgp::packet::{Signature, SignatureConfig, SignatureType, Subpacket, SubpacketData};
+use pgp::ser::Serialize;
+use pgp::types::{KeyDetails, Password, SecretKeyTrait};
 use rpgpie::certificate::Checked;
 
 use crate::notify::notify_and_eprint;
@@ -182,10 +183,10 @@ pub fn sign(
 
     let signature = if let Some(file_name) = signer_id.strip_prefix("file::") {
         // We're using a software key to perform the signing operation
-        let signer = SignedSecretKey::from_bytes(std::fs::File::open(file_name)?)?;
+        let signer = SignedSecretKey::from_file(file_name)?;
 
-        // FIXME: this call implicitly signs with the primary key
-        calculate_signature(signer, data)?
+        // FIXME: this call always signs with the primary key!
+        calculate_signature(signer.primary_key, data)?
     } else {
         // We're trying to use an OpenPGP card to perform the signing operation
 
@@ -251,7 +252,7 @@ pub fn sign(
     match armor {
         Armor::Armor => StandaloneSignature { signature }
             .to_armored_writer(&mut out, ArmorOptions::default())?,
-        Armor::NoArmor => pgp::packet::write_packet(&mut out, &signature)?,
+        Armor::NoArmor => StandaloneSignature { signature }.to_writer(&mut out)?,
     }
 
     // https://github.com/git/git/blob/11c821f2f2a31e70fb5cc449f9a29401c333aad2/gpg-interface.c#L994
@@ -271,28 +272,12 @@ fn calculate_signature(
     sig_config.hashed_subpackets = vec![
         Subpacket::regular(SubpacketData::SignatureCreationTime(
             std::time::SystemTime::now().into(),
-        )),
-        Subpacket::regular(SubpacketData::Issuer(signer.key_id())),
-        Subpacket::regular(SubpacketData::IssuerFingerprint(signer.fingerprint())),
+        ))?,
+        Subpacket::regular(SubpacketData::Issuer(signer.key_id()))?,
+        Subpacket::regular(SubpacketData::IssuerFingerprint(signer.fingerprint()))?,
     ];
 
-    let mut hasher = sig_config.hash_alg.new_hasher()?;
-
-    sig_config.hash_data_to_sign(&mut *hasher, data)?;
-
-    let mut sig_cfg = vec![];
-    let len = sig_config.hash_signature_data(&mut sig_cfg)?;
-
-    hasher.update(&sig_cfg);
-
-    hasher.update(&sig_config.trailer(len)?);
-
-    let hash = &hasher.finish()[..];
-
-    let signed_hash_value = [hash[0], hash[1]];
-    let raw_sig = signer.create_signature(String::new, sig_config.hash_alg, hash)?;
-
-    let signature = Signature::from_config(sig_config, signed_hash_value, raw_sig);
+    let signature = sig_config.sign(&signer, &Password::empty(), data)?;
 
     Ok(signature)
 }

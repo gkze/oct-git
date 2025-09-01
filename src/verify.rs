@@ -7,10 +7,9 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 use hex::ToHex;
-use pgp::packet::SignatureConfig;
-use pgp::Signature;
+use pgp::packet::{Signature, SignatureConfig};
+use pgp::types::KeyDetails;
 use rpgpie::certificate::{Checked, SignatureVerifier};
-use rpgpie::ComponentKeyPub;
 
 /// List of hex encoded (lowercase) issuer fingerprints
 fn signer_fps(sc: &SignatureConfig) -> Vec<String> {
@@ -67,10 +66,13 @@ pub fn verify(
     std::io::copy(&mut data, &mut buffer)?;
 
     let sig = &rpgpie::signature::load(&mut std::fs::File::open(sig_path)?)?[0];
+    let Some(conf) = sig.config() else {
+        unimplemented!()
+    };
 
-    let fps_hex = signer_fps(&sig.config);
+    let fps_hex = signer_fps(conf);
 
-    let sig_creation = sig.config.created().expect("FIXME");
+    let sig_creation = conf.created().expect("FIXME");
 
     log::trace!("verify sig setup done");
 
@@ -88,7 +90,7 @@ pub fn verify(
 
     log::trace!("verify: cert store lookup by fp");
 
-    let key_ids_hex = signer_key_ids(&sig.config);
+    let key_ids_hex = signer_key_ids(conf);
     if certs.is_empty() {
         // no signer certificate found in store by issuer_fingerprint, try by key_id
         certs = key_ids_hex
@@ -181,19 +183,22 @@ fn print_results(
     // git log --show-signature --format="%H %G? %GS %GF"
     // (https://github.com/JetBrains/intellij-community/blob/c856f5fe2ccbee91f8c85d11f94bbaa84af3b557/plugins/git4idea/src/git4idea/log/GitCommitSignatureLoaderBase.kt#L114-L119)
 
+    let Some(conf) = sig.config() else {
+        unimplemented!()
+    };
+
     writeln!(
         err,
         "oct-git: Signature created {}",
-        sig.config
-            .created()
+        conf.created()
             .map(|dt| dt.to_string())
             .unwrap_or("[missing creation time]".to_string())
     )?;
     writeln!(
         err,
         "oct-git:      by {:?} key {}",
-        sig.config.pub_alg,
-        yolo_signer_id(&sig.config)
+        conf.pub_alg,
+        yolo_signer_id(conf)
     )?;
 
     if ccerts.is_empty() {
@@ -216,21 +221,24 @@ fn print_results(
         // Is the cert/primary invalid in any way now?
         let cert_invalid = !ccert.primary_valid_at(&now)?;
 
-        let (ckey_revoked, ckey_invalid) = if ccert.fingerprint() == verifier_fp {
+        let (ckey_revoked, ckey_invalid) = if *ccert.fingerprint() == verifier_fp {
             // verifier was the primary
             (cert_revoked, cert_invalid)
         } else {
             // verifier was a subkey
-            let sk: Vec<_> = ccert
-                .subkeys()
-                .filter(|sk| ComponentKeyPub::from(sk.clone()).fingerprint() == verifier_fp)
-                .collect();
 
-            assert_eq!(sk.len(), 1); // FIXME
-            let sckp = &sk[0];
+            let status = rpgpie::model::status_summary(ccert);
 
-            let ckey_revoked = sckp.revoked(&now);
-            let ckey_invalid = !sckp.is_valid_at(&now);
+            let Some(key_summary) = status
+                .subkeys
+                .iter()
+                .find(|key| key.fingerprint == hex::encode(verifier_fp.as_bytes()))
+            else {
+                unimplemented!("FIXME");
+            };
+
+            let ckey_revoked = cert_revoked || key_summary.status.is_revoked();
+            let ckey_invalid = cert_invalid || !key_summary.status.is_valid();
 
             (ckey_revoked, ckey_invalid)
         };
@@ -271,19 +279,21 @@ fn print_results(
         )?;
 
         // primary user id
-        if let Some(user_id) = ccert.primary_user_id() {
-            writeln!(err, "oct-git: Signer User ID \"{}\"", user_id.id.id())?;
+        if let Some(signed_user) = ccert.primary_user_id() {
+            let user_id = String::from_utf8_lossy(signed_user.id.id());
+
+            writeln!(err, "oct-git: Signer User ID \"{}\"", user_id)?;
             writeln!(
                 out,
-                "\n[GNUPG:] GOODSIG {:X} {}",
-                verifier.as_componentkey().key_id(),
-                user_id.id.id()
+                "\n[GNUPG:] GOODSIG {} {}",
+                hex::encode_upper(verifier.as_componentkey().key_id()),
+                user_id
             )?;
         } else {
             writeln!(
                 out,
-                "\n[GNUPG:] GOODSIG {:X}",
-                verifier.as_componentkey().key_id(),
+                "\n[GNUPG:] GOODSIG {}",
+                hex::encode_upper(verifier.as_componentkey().key_id()),
             )?;
         }
 
@@ -303,9 +313,9 @@ fn print_results(
         writeln!(
             err,
             "oct-git: No valid signature by key {}",
-            signer_fps(&sig.config)
+            signer_fps(conf)
                 .into_iter()
-                .chain(signer_key_ids(&sig.config).into_iter())
+                .chain(signer_key_ids(conf).into_iter())
                 .collect::<Vec<_>>()
                 .join(" ")
         )?;
