@@ -1,6 +1,10 @@
 # SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
 # SPDX-License-Identifier: CC0-1.0
 
+when:
+  - path: [ "*/src/**" , "*/tests/**" ,"Cargo.toml", ".woodpecker.yml" ]
+    event: push
+
 steps:
   reuse:
     image: fsfe/reuse:latest
@@ -12,14 +16,14 @@ steps:
       - cargo +nightly fmt -- --check
 
   clippy:
-    image: rust:1.85
+    image: rust:1.93
     commands:
       - rustup component add clippy
       - apt update -y -qq && apt install -y -qq --no-install-recommends libpcsclite-dev libdbus-1-dev
       - cargo clippy --no-deps --tests --examples
 
   test:
-    image: rust:1.85
+    image: rust:1.93
     commands:
       - apt update -y -qq && apt install -y -qq --no-install-recommends libpcsclite-dev libdbus-1-dev
       - cargo test
