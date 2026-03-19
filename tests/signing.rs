@@ -27,7 +27,8 @@ fn signing_key() -> TestResult {
         eprintln!("An error occurred: {}", e);
         eprintln!("stderr: {}", String::from_utf8_lossy(&stderr));
         println!("stdout: {}", String::from_utf8_lossy(&stdout));
-        Err(e.into())
+
+        panic!("{}", e);
     } else {
         let verification_key = SignedPublicKey::from_file("tests/signing-key.pub.pgp")?;
         let signature = StandaloneSignature::from_armor_single(std::io::Cursor::new(stdout))?.0;

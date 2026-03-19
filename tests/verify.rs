@@ -44,7 +44,8 @@ fn main(#[files("tests/test-cases/*")] path: PathBuf) -> TestResult {
         eprintln!("An error occurred: {}", e);
         eprintln!("stderr: {}", String::from_utf8_lossy(&stderr));
         println!("stdout: {}", String::from_utf8_lossy(&stdout));
-        Err(e.into())
+
+        panic!("{}", e);
     } else {
         assert_eq!(
             String::from_utf8_lossy(&stdout),
