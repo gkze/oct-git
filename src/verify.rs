@@ -76,7 +76,7 @@ pub fn verify(
     // look up certificates for the issuer(s) in the cert store
     let mut certs: Vec<Checked> = fps_hex
         .iter()
-        .flat_map(|fpr| store.search_by_fingerprint(fpr).ok())
+        .flat_map(|fpr| store.search_and_poll_by_fingerprint(fpr).ok())
         .flatten()
         .map(|c| Checked::new(c.clone()))
         .filter(|c| {
@@ -92,7 +92,7 @@ pub fn verify(
         // no signer certificate found in store by issuer_fingerprint, try by key_id
         certs = key_ids_hex
             .iter()
-            .flat_map(|key_id| store.search_by_key_id(key_id).ok())
+            .flat_map(|key_id| store.search_and_poll_by_key_id(key_id).ok())
             .flatten()
             .map(|c| Checked::new(c.clone()))
             .filter(|c| {
@@ -103,41 +103,6 @@ pub fn verify(
     }
 
     log::trace!("verify: cert store lookup by key id");
-
-    // If our store lookups didn't yield any certificate, we try to find certificates on
-    // keyservers (first by fingerprint, then by key id)
-    if certs.is_empty() {
-        log::trace!("verify: poll from PKI by fps");
-
-        certs = store
-            .poll(&fps_hex)?
-            .into_iter()
-            .map(|c| Checked::new(c.clone()))
-            .collect();
-
-        log::debug!("got {} certificates from PKI by fingerprints", certs.len());
-
-        if certs.is_empty() {
-            log::trace!("verify: poll from PKI by key id");
-
-            certs = store
-                .poll(&key_ids_hex)?
-                .into_iter()
-                .map(Checked::new)
-                .collect();
-
-            log::debug!("got {} certificates from PKI by key ids", certs.len());
-        }
-
-        log::trace!("verify: pki lookups done");
-
-        // ... persist any results, for next time
-        for c in &certs {
-            let _ = store.insert(&c.clone().into()); // silently ignore errors
-        }
-
-        log::trace!("verify: store persisted");
-    }
 
     let valid_sigs = certs
         .iter()

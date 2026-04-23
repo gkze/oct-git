@@ -28,7 +28,7 @@ openpgp-card-state = "0.4.0"
 pgp = "0.19"
 rpassword = "7"
 rpgpie = "0.9"
-rpgpie-certificate-store = "0.4.0"
+rpgpie-certificate-store = "0.4.1"
 
 [target.'cfg(windows)'.dependencies]
 libsqlite3-sys = { version = "0.28", features = ["bundled"] }

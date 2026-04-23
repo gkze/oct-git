@@ -99,8 +99,8 @@ fn lookup_signer_id_in_store(
     };
 
     let mut signer_certs = match signer_id.len() {
-        40 => store.search_by_fingerprint(signer_id).ok(),
-        16 => store.search_by_key_id(signer_id).ok(),
+        40 => store.search_and_poll_by_fingerprint(signer_id).ok(),
+        16 => store.search_and_poll_by_key_id(signer_id).ok(),
         _ => None,
     };
 

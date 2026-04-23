@@ -3404,9 +3404,9 @@ dependencies = [
 
 [[package]]
 name = "rpgpie-certificate-store"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "897a57b2fce4f2d82c4f6cce4a901dbb598a0713cd2fdb5aed10ddc6811775ca"
+checksum = "2b4d4daf9a85ba1c553e6b143c524a0117f622c5d7ebd1fdc870ef8d9ae9be73"
 dependencies = [
  "chrono",
  "diesel",

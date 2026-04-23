@@ -132,9 +132,9 @@ Additionally, the User PIN for any OpenPGP card device must be accessible via [o
 
 Verification of signatures automatically uses OpenPGP certificates from the local [openpgp-cert-d](https://crates.io/crates/openpgp-cert-d) "shared OpenPGP Certificate Directory".
 
-If a certificate is not present in the local openpgp-cert-d store, `oct-git` attempts to automatically download it [^lookup] from a number of well-known public online directories (currently,`oct-git` queries [keyserver.ubuntu.com](https://keyserver.ubuntu.com/) and [keys.openpgp.org](https://keys.openpgp.org/)).
+If a certificate is not present in the local openpgp-cert-d store, or hasn't been updated in a while, `oct-git` attempts to automatically download it[^lookup] from a number of well-known public online directories (currently,`oct-git` queries [keys.openpgp.org](https://keys.openpgp.org/)), [pgpkeys.eu](https://pgpkeys.eu) and [keyserver.ubuntu.com](https://keyserver.ubuntu.com/).
 
-[^lookup]: PKI queries to acquire certificates perform a lookup by signing key fingerprint or key id.
+[^lookup]: PKI queries to acquire certificates perform a lookup by fingerprint or key id.
 
 ### Manually importing certificates to the store
 
