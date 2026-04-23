@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use openpgp_card_tool_git::{sign, Armor};
-use pgp::composed::{Deserializable, SignedPublicKey, StandaloneSignature};
+use pgp::composed::{Deserializable, DetachedSignature, SignedPublicKey};
 use testresult::TestResult;
 
 #[test]
@@ -31,7 +31,7 @@ fn signing_key() -> TestResult {
         panic!("{}", e);
     } else {
         let verification_key = SignedPublicKey::from_file("tests/signing-key.pub.pgp")?;
-        let signature = StandaloneSignature::from_armor_single(std::io::Cursor::new(stdout))?.0;
+        let signature = DetachedSignature::from_armor_single(std::io::Cursor::new(stdout))?.0;
         signature
             .signature
             .verify(&verification_key, data.as_bytes())?;

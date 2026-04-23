@@ -8,10 +8,10 @@ use std::path::PathBuf;
 use card_backend_pcsc::PcscBackend;
 use openpgp_card::ocard::KeyType;
 use openpgp_card_rpgp::CardSlot;
-use pgp::composed::{ArmorOptions, Deserializable, SignedSecretKey, StandaloneSignature};
+use pgp::composed::{ArmorOptions, Deserializable, DetachedSignature, SignedSecretKey};
 use pgp::packet::{Signature, SignatureConfig, SignatureType, Subpacket, SubpacketData};
 use pgp::ser::Serialize;
-use pgp::types::{KeyDetails, Password, SecretKeyTrait};
+use pgp::types::{KeyDetails, Password, SigningKey, Timestamp};
 use rpgpie::certificate::Checked;
 
 use crate::notify::notify_and_eprint;
@@ -138,10 +138,10 @@ fn lookup_signer_id_in_store(
     let signer_ids = match signer_cert {
         None => vec![hex::decode(signer_id)?],
         Some(c) => {
-            let ccert = Checked::from(&c);
+            let ccert = Checked::from(c);
 
             let signer_fps: Vec<_> = ccert
-                .valid_signing_capable_component_keys_at(&std::time::SystemTime::now().into())
+                .valid_signing_capable_component_keys_at(Timestamp::now())
                 .iter()
                 .map(|sv| sv.as_componentkey().fingerprint().as_bytes().to_vec())
                 .collect();
@@ -250,9 +250,10 @@ pub fn sign(
     };
 
     match armor {
-        Armor::Armor => StandaloneSignature { signature }
-            .to_armored_writer(&mut out, ArmorOptions::default())?,
-        Armor::NoArmor => StandaloneSignature { signature }.to_writer(&mut out)?,
+        Armor::Armor => {
+            DetachedSignature { signature }.to_armored_writer(&mut out, ArmorOptions::default())?
+        }
+        Armor::NoArmor => DetachedSignature { signature }.to_writer(&mut out)?,
     }
 
     // https://github.com/git/git/blob/11c821f2f2a31e70fb5cc449f9a29401c333aad2/gpg-interface.c#L994
@@ -263,17 +264,15 @@ pub fn sign(
 
 /// Set up a signature packet, hash `data`, and make a cryptographic signature with `signer`
 fn calculate_signature(
-    signer: impl SecretKeyTrait,
+    signer: impl SigningKey,
     data: impl Read,
 ) -> Result<Signature, Box<dyn std::error::Error>> {
     let mut sig_config =
         SignatureConfig::v4(SignatureType::Binary, signer.algorithm(), signer.hash_alg());
 
     sig_config.hashed_subpackets = vec![
-        Subpacket::regular(SubpacketData::SignatureCreationTime(
-            std::time::SystemTime::now().into(),
-        ))?,
-        Subpacket::regular(SubpacketData::Issuer(signer.key_id()))?,
+        Subpacket::regular(SubpacketData::SignatureCreationTime(Timestamp::now()))?,
+        Subpacket::regular(SubpacketData::IssuerKeyId(signer.legacy_key_id()))?,
         Subpacket::regular(SubpacketData::IssuerFingerprint(signer.fingerprint()))?,
     ];
 

@@ -4,11 +4,11 @@
 
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::time::SystemTime;
 
+use chrono::DateTime;
 use hex::ToHex;
 use pgp::packet::{Signature, SignatureConfig};
-use pgp::types::KeyDetails;
+use pgp::types::{KeyDetails, Timestamp};
 use rpgpie::certificate::{Checked, SignatureVerifier};
 
 /// List of hex encoded (lowercase) issuer fingerprints
@@ -23,11 +23,8 @@ fn signer_fps(sc: &SignatureConfig) -> Vec<String> {
 
 /// List of hex encoded (lowercase) issuer key ids
 fn signer_key_ids(sc: &SignatureConfig) -> Vec<String> {
-    let fingerprints = sc.issuer();
-    fingerprints
-        .iter()
-        .map(|key_id| key_id.encode_hex())
-        .collect()
+    let key_ids = sc.issuer_key_id();
+    key_ids.iter().map(|key_id| key_id.encode_hex()).collect()
 }
 
 /// Get a human-readable identifier for the signature issuer (fp or key id)
@@ -81,7 +78,7 @@ pub fn verify(
         .iter()
         .flat_map(|fpr| store.search_by_fingerprint(fpr).ok())
         .flatten()
-        .map(|c| Checked::from(&c))
+        .map(|c| Checked::new(c.clone()))
         .filter(|c| {
             !c.valid_signing_capable_component_keys_at(sig_creation)
                 .is_empty()
@@ -97,7 +94,7 @@ pub fn verify(
             .iter()
             .flat_map(|key_id| store.search_by_key_id(key_id).ok())
             .flatten()
-            .map(|c| Checked::from(&c))
+            .map(|c| Checked::new(c.clone()))
             .filter(|c| {
                 !c.valid_signing_capable_component_keys_at(sig_creation)
                     .is_empty()
@@ -115,7 +112,7 @@ pub fn verify(
         certs = store
             .poll(&fps_hex)?
             .into_iter()
-            .map(|c| Checked::from(&c))
+            .map(|c| Checked::new(c.clone()))
             .collect();
 
         log::debug!("got {} certificates from PKI by fingerprints", certs.len());
@@ -126,7 +123,7 @@ pub fn verify(
             certs = store
                 .poll(&key_ids_hex)?
                 .into_iter()
-                .map(|c| Checked::from(&c))
+                .map(Checked::new)
                 .collect();
 
             log::debug!("got {} certificates from PKI by key ids", certs.len());
@@ -191,7 +188,11 @@ fn print_results(
         err,
         "oct-git: Signature created {}",
         conf.created()
-            .map(|dt| dt.to_string())
+            .map(|ts| {
+                DateTime::from_timestamp(ts.as_secs() as i64, 0)
+                    .expect("DateTime")
+                    .to_string()
+            })
             .unwrap_or("[missing creation time]".to_string())
     )?;
     writeln!(
@@ -213,13 +214,13 @@ fn print_results(
     for (ccert, verifier) in &valid_sigs {
         let verifier_fp = verifier.as_componentkey().fingerprint();
 
-        let now = SystemTime::now().into();
+        let now = Timestamp::now();
 
         // Is the cert/primary revoked now?
-        let cert_revoked = ccert.revoked_at(&now);
+        let cert_revoked = ccert.revoked_at(now);
 
         // Is the cert/primary invalid in any way now?
-        let cert_invalid = !ccert.primary_valid_at(&now)?;
+        let cert_invalid = !ccert.primary_valid_at(now)?;
 
         let (ckey_revoked, ckey_invalid) = if *ccert.fingerprint() == verifier_fp {
             // verifier was the primary
@@ -286,14 +287,14 @@ fn print_results(
             writeln!(
                 out,
                 "\n[GNUPG:] GOODSIG {} {}",
-                hex::encode_upper(verifier.as_componentkey().key_id()),
+                hex::encode_upper(verifier.as_componentkey().legacy_key_id()),
                 user_id
             )?;
         } else {
             writeln!(
                 out,
                 "\n[GNUPG:] GOODSIG {}",
-                hex::encode_upper(verifier.as_componentkey().key_id()),
+                hex::encode_upper(verifier.as_componentkey().legacy_key_id()),
             )?;
         }
 

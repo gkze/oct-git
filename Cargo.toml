@@ -16,18 +16,19 @@ name = "oct-git"
 
 [dependencies]
 card-backend-pcsc = "0.5"
+chrono = "0.4"
 clap = { version = "4", features = ["derive", "env"] }
 env_logger = "0.11"
 hex = "0.4"
 log = "0.4"
 notify-rust = { version = "4", optional = true }
-openpgp-card = "0.5"
-openpgp-card-rpgp = "0.4"
+openpgp-card = "0.6"
+openpgp-card-rpgp = "0.7"
 openpgp-card-state = "0.4.0"
-pgp = "0.16"
+pgp = "0.19"
 rpassword = "7"
-rpgpie = "0.6.6"
-rpgpie-certificate-store = "0.3.1"
+rpgpie = "0.9"
+rpgpie-certificate-store = "0.4.0"
 
 [target.'cfg(windows)'.dependencies]
 libsqlite3-sys = { version = "0.28", features = ["bundled"] }
