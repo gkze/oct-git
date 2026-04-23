@@ -149,6 +149,11 @@ fn lookup_signer_id_in_store(
             if !signer_fps.is_empty() {
                 signer_fps
             } else {
+                eprintln!(
+                    "No valid signing component key found in certificate {} (might need expiration extension?)",
+                    ccert.fingerprint()
+                );
+
                 vec![hex::decode(signer_id)?]
             }
         }
