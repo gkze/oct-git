@@ -2427,9 +2427,9 @@ dependencies = [
 
 [[package]]
 name = "openpgp-card-rpgp"
-version = "0.8.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c0a443281913544afc20d9deab29e9a60eb3b197f9d840b62d68bb1f6674a3c"
+checksum = "95e9ead2b8133216b3d6ad38caf83bcba4c02d9e92f6aeb1dddba5053d6cb609"
 dependencies = [
  "ed25519-dalek",
  "openpgp-card",
@@ -2672,9 +2672,9 @@ dependencies = [
 
 [[package]]
 name = "pgp"
-version = "0.20.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cfa4743b28656065ff4c0ba09e46b357a65e8c00fc2341e89084b82f87cbdf1"
+checksum = "ae70f4d9325a391db30d115d6191a7bb67cec856aa0bba131290f0c4e09a532a"
 dependencies = [
  "aead",
  "aes",
@@ -3156,9 +3156,9 @@ dependencies = [
 
 [[package]]
 name = "rpgpie"
-version = "0.11.5"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f09c99b75953ade194818e90dd4f63ef3da002104ac8c22a2a3f184e5987c375"
+checksum = "eac9294fce57b6da911c7a8b36a92a9208de047cea5c658e84c2b9772af9ddee"
 dependencies = [
  "chrono",
  "hex",
@@ -3175,9 +3175,9 @@ dependencies = [
 
 [[package]]
 name = "rpgpie-certificate-store"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e3ff4cf6b4b20a775ebbed24a0348008f5455a6a7e5ee5abb5e44270e014c82"
+checksum = "8e70973681d295ecb7729333b67560e9f33a10fba1e0dd4d6672b514cda7cbd1"
 dependencies = [
  "chrono",
  "diesel",
