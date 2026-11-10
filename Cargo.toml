@@ -8,7 +8,7 @@ description = "A simple tool for Git signing and verification with a focus on Op
 version = "0.1.8"
 authors = ["Wiktor Kwapisiewicz <wiktor@metacode.biz>", "Heiko Schaefer <heiko@schaefer.name>"]
 license = "MIT OR Apache-2.0"
-edition = "2021"
+edition = "2024"
 repository = "https://codeberg.org/openpgp-card/oct-git"
 
 [[bin]]

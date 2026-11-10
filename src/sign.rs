@@ -36,11 +36,11 @@ fn verify_pin_from_backend(
             match res {
                 Ok(()) => notify_and_eprint(&format!(
                     "Card {} rejected stored User PIN, dropped PIN from storage.",
-                    &ident
+                    ident
                 )),
                 Err(e) => notify_and_eprint(&format!(
                     "Card {} rejected stored User PIN, and dropping PIN from storage failed: {}.",
-                    &ident, e
+                    ident, e
                 )),
             }
             Err(std::io::Error::other("Bad stored User PIN.").into())
@@ -50,7 +50,7 @@ fn verify_pin_from_backend(
     } else {
         notify_and_eprint(&format!(
             "Missing User PIN for {}. Run 'oct-git --store-card-pin' to fix.",
-            &ident
+            ident
         ));
 
         Err(std::io::Error::other("No User PIN configured.").into())
@@ -105,8 +105,8 @@ fn lookup_signer_id_in_store(
     };
 
     // if we didn't find any candidate Certificates in the local store, ask koo
-    if let Some(certs) = &signer_certs {
-        if certs.is_empty() {
+    if let Some(certs) = &signer_certs
+        && certs.is_empty() {
             // try polling from KOO ...
             let koo = store.poll(&[signer_id.to_string()])?;
 
@@ -117,7 +117,6 @@ fn lookup_signer_id_in_store(
 
             signer_certs = Some(koo);
         }
-    }
 
     // we will only consider the certificate if we got exactly one.
     let signer_cert = signer_certs
