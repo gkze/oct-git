@@ -21,12 +21,13 @@ fn main(#[files("tests/test-cases/*")] path: PathBuf) -> TestResult {
     for file in std::fs::read_dir(&path)? {
         let path = file?.path();
         if let Some(extension) = path.extension()
-            && extension == "pgp" {
-                eprintln!("Inserting new certificate: {}", path.display());
-                cert_d.insert_data(&std::fs::read(&path)?, false, |contents, _| {
-                    Ok(openpgp_cert_d::MergeResult::DataRef(contents))
-                })?;
-            }
+            && extension == "pgp"
+        {
+            eprintln!("Inserting new certificate: {}", path.display());
+            cert_d.insert_data(&std::fs::read(&path)?, false, |contents, _| {
+                Ok(openpgp_cert_d::MergeResult::DataRef(contents))
+            })?;
+        }
     }
 
     drop(cert_d);

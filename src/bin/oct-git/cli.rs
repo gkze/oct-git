@@ -2,8 +2,7 @@
 // SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::convert::TryFrom;
-use std::path::PathBuf;
+use std::{convert::TryFrom, path::PathBuf};
 
 use clap::Parser;
 use openpgp_card_tool_git::Armor;

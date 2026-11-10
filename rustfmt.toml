@@ -1,8 +1,12 @@
-# SPDX-FileCopyrightText: 2023 Wiktor Kwapisiewicz <wiktor@metacode.biz>
+# SPDX-FileCopyrightText: Wiktor Kwapisiewicz <wiktor@metacode.biz>
+# SPDX-FileCopyrightText: Heiko Schaefer <heiko.schaefer@posteo.de>
 # SPDX-License-Identifier: CC0-1.0
 
-# CHECK: https://github.com/rust-lang/rustfmt/issues/5083 state == open
-group_imports = "StdExternalCrate"
-
-# CHECK: https://github.com/rust-lang/rustfmt/issues/3348 state == open
+comment_width = 160
 format_code_in_doc_comments = true
+group_imports = "StdExternalCrate"
+imports_granularity = "Crate"
+imports_layout = "HorizontalVertical"
+reorder_imports = true
+style_edition = "2024"
+wrap_comments = true

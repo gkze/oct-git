@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Wiktor Kwapisiewicz <wiktor@metacode.biz>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use openpgp_card_tool_git::{sign, Armor};
+use openpgp_card_tool_git::{Armor, sign};
 use pgp::composed::{Deserializable, DetachedSignature, SignedPublicKey};
 use testresult::TestResult;
 

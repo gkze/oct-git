@@ -2,13 +2,17 @@
 // SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::{
+    io::{Read, Write},
+    path::PathBuf,
+};
 
 use chrono::DateTime;
 use hex::ToHex;
-use pgp::packet::{Signature, SignatureConfig};
-use pgp::types::{KeyDetails, Timestamp};
+use pgp::{
+    packet::{Signature, SignatureConfig},
+    types::{KeyDetails, Timestamp},
+};
 use rpgpie::certificate::{Checked, SignatureVerifier};
 
 /// List of hex encoded (lowercase) issuer fingerprints
@@ -210,21 +214,13 @@ fn print_results(
         };
 
         fn revoked_str(rev: bool) -> &'static str {
-            if rev {
-                " [revoked]"
-            } else {
-                ""
-            }
+            if rev { " [revoked]" } else { "" }
         }
 
         // FIXME: this is messy: we print "expired" because that's the most likely case for a
         // valid signature to have been issued by a now invalid key.
         fn invalid_str(rev: bool) -> &'static str {
-            if rev {
-                " [expired]"
-            } else {
-                ""
-            }
+            if rev { " [expired]" } else { "" }
         }
         // component key
         writeln!(

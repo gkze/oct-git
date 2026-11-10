@@ -2,20 +2,23 @@
 // SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::{
+    io::{Read, Write},
+    path::PathBuf,
+};
 
 use card_backend_pcsc::PcscBackend;
 use openpgp_card::ocard::KeyType;
 use openpgp_card_rpgp::CardSlot;
-use pgp::composed::{ArmorOptions, Deserializable, DetachedSignature, SignedSecretKey};
-use pgp::packet::{Signature, SignatureConfig, SignatureType, Subpacket, SubpacketData};
-use pgp::ser::Serialize;
-use pgp::types::{KeyDetails, Password, SigningKey, Timestamp};
+use pgp::{
+    composed::{ArmorOptions, Deserializable, DetachedSignature, SignedSecretKey},
+    packet::{Signature, SignatureConfig, SignatureType, Subpacket, SubpacketData},
+    ser::Serialize,
+    types::{KeyDetails, Password, SigningKey, Timestamp},
+};
 use rpgpie::certificate::Checked;
 
-use crate::notify::notify_and_eprint;
-use crate::Armor;
+use crate::{Armor, notify::notify_and_eprint};
 
 /// Attempt to present the User PIN to the card, for signing
 fn verify_pin_from_backend(
@@ -76,7 +79,10 @@ fn match_id(card_fp: &[u8], git: &[u8]) -> bool {
 
     match (card_fp.len(), git.len()) {
         (FP_V4_LEN, FP_V4_LEN) => card_fp == git,
-        (FP_V4_LEN, KEYID_LEN) => &card_fp[FP_V4_LEN - KEYID_LEN..] == git, // match `git` as a v4 key id
+
+        // match `git` as a v4 key id
+        (FP_V4_LEN, KEYID_LEN) => &card_fp[FP_V4_LEN - KEYID_LEN..] == git,
+
         _ => false,
     }
 }
@@ -106,17 +112,18 @@ fn lookup_signer_id_in_store(
 
     // if we didn't find any candidate Certificates in the local store, ask koo
     if let Some(certs) = &signer_certs
-        && certs.is_empty() {
-            // try polling from KOO ...
-            let koo = store.poll(&[signer_id.to_string()])?;
+        && certs.is_empty()
+    {
+        // try polling from KOO ...
+        let koo = store.poll(&[signer_id.to_string()])?;
 
-            // ... and store results in certd, if any
-            for c in &koo {
-                store.insert(c)?;
-            }
-
-            signer_certs = Some(koo);
+        // ... and store results in certd, if any
+        for c in &koo {
+            store.insert(c)?;
         }
+
+        signer_certs = Some(koo);
+    }
 
     // we will only consider the certificate if we got exactly one.
     let signer_cert = signer_certs
