@@ -22,21 +22,21 @@ env_logger = "0.11"
 hex = "0.4"
 log = "0.4"
 notify-rust = { version = "4", optional = true }
-openpgp-card = "0.6"
-openpgp-card-rpgp = "0.7"
-openpgp-card-state = "0.4.0"
-pgp = "0.19"
+openpgp-card = "0.7"
+openpgp-card-rpgp = "0.8"
+openpgp-card-state = "0.4.2"
+pgp = "0.20"
 rpassword = "7"
-rpgpie = "0.9"
-rpgpie-certificate-store = "0.4.1"
+rpgpie = "0.11"
+rpgpie-certificate-store = "0.5"
 
 [target.'cfg(windows)'.dependencies]
 libsqlite3-sys = { version = "0.28", features = ["bundled"] }
 
 [dev-dependencies]
 openpgp-cert-d = "0.3"
-rstest = "0.19"
-testdir = "0.9"
+rstest = "0.25"
+testdir = "0.10"
 testresult = "0.4"
 
 [features]

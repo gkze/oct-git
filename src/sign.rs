@@ -104,26 +104,11 @@ fn lookup_signer_id_in_store(
         return Ok(vec![hex::decode(signer_id)?]);
     };
 
-    let mut signer_certs = match signer_id.len() {
+    let signer_certs = match signer_id.len() {
         40 => store.search_and_poll_by_fingerprint(signer_id).ok(),
         16 => store.search_and_poll_by_key_id(signer_id).ok(),
         _ => None,
     };
-
-    // if we didn't find any candidate Certificates in the local store, ask koo
-    if let Some(certs) = &signer_certs
-        && certs.is_empty()
-    {
-        // try polling from KOO ...
-        let koo = store.poll(&[signer_id.to_string()])?;
-
-        // ... and store results in certd, if any
-        for c in &koo {
-            store.insert(c)?;
-        }
-
-        signer_certs = Some(koo);
-    }
 
     // we will only consider the certificate if we got exactly one.
     let signer_cert = signer_certs
