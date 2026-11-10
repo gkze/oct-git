@@ -2659,7 +2659,7 @@ dependencies = [
 
 [[package]]
 name = "openpgp-card-tool-git"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "card-backend-pcsc",
  "chrono",

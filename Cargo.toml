@@ -5,7 +5,7 @@
 [package]
 name = "openpgp-card-tool-git"
 description = "A simple tool for Git signing and verification with a focus on OpenPGP cards"
-version = "0.1.8"
+version = "0.1.9"
 authors = ["Wiktor Kwapisiewicz <wiktor@metacode.biz>", "Heiko Schaefer <heiko@schaefer.name>"]
 license = "MIT OR Apache-2.0"
 edition = "2024"
